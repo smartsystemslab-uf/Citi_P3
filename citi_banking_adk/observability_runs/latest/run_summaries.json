@@ -1,0 +1,1080 @@
+[
+  {
+    "total_events": 35,
+    "selected_events": 17,
+    "dropped_events": 18,
+    "selection_rate": 0.4857,
+    "raw_size_bytes": 20601,
+    "selected_size_bytes": 11585,
+    "storage_reduction_rate": 0.4376,
+    "compression_ratio": 0.5624,
+    "critical_events": 19,
+    "critical_events_selected": 17,
+    "critical_event_recall": 0.8947,
+    "avg_importance_score": 0.2231,
+    "p95_importance_score": 0.447,
+    "event_type_counts": {
+      "model_text": 15,
+      "tool_call": 7,
+      "transfer": 2,
+      "tool_result": 6,
+      "result": 4,
+      "manual_review": 1
+    },
+    "selected_event_type_counts": {
+      "tool_result": 4,
+      "result": 4,
+      "model_text": 6,
+      "tool_call": 2,
+      "manual_review": 1
+    },
+    "agent_counts": {
+      "user_proxy_agent": 4,
+      "front_office_router": 4,
+      "transaction_monitoring_agent": 12,
+      "fraud_detection_agent": 3,
+      "compliance_agent": 6,
+      "decision_making_agent": 6
+    },
+    "workflow_counts": {
+      "front_office": 25,
+      "back_office": 2,
+      "mid_office": 8
+    },
+    "keep_reason_counts": {
+      "anomaly": 4,
+      "risk": 13,
+      "decision_point": 4,
+      "importance_threshold": 2,
+      "state_change": 2,
+      "critical_event_type": 1
+    },
+    "scenario_name": "front_office_monitoring",
+    "run_index": 1,
+    "trace_id": "e682577ff92996bf",
+    "status": "ok",
+    "error": "",
+    "runtime_seconds": 27.2825
+  },
+  {
+    "total_events": 35,
+    "selected_events": 18,
+    "dropped_events": 17,
+    "selection_rate": 0.5143,
+    "raw_size_bytes": 21800,
+    "selected_size_bytes": 15943,
+    "storage_reduction_rate": 0.2687,
+    "compression_ratio": 0.7313,
+    "critical_events": 20,
+    "critical_events_selected": 18,
+    "critical_event_recall": 0.9,
+    "avg_importance_score": 0.2432,
+    "p95_importance_score": 0.453,
+    "event_type_counts": {
+      "model_text": 15,
+      "tool_call": 7,
+      "transfer": 2,
+      "tool_result": 6,
+      "result": 4,
+      "manual_review": 1
+    },
+    "selected_event_type_counts": {
+      "tool_result": 4,
+      "result": 4,
+      "model_text": 7,
+      "tool_call": 2,
+      "manual_review": 1
+    },
+    "agent_counts": {
+      "user_proxy_agent": 4,
+      "front_office_router": 4,
+      "transaction_monitoring_agent": 9,
+      "fraud_detection_agent": 6,
+      "compliance_agent": 6,
+      "decision_making_agent": 6
+    },
+    "workflow_counts": {
+      "front_office": 25,
+      "mid_office": 8,
+      "back_office": 2
+    },
+    "keep_reason_counts": {
+      "anomaly": 5,
+      "risk": 14,
+      "decision_point": 4,
+      "importance_threshold": 6,
+      "state_change": 2,
+      "critical_event_type": 1
+    },
+    "scenario_name": "front_office_monitoring",
+    "run_index": 2,
+    "trace_id": "66ff0b47131ffd09",
+    "status": "ok",
+    "error": "",
+    "runtime_seconds": 25.8989
+  },
+  {
+    "total_events": 32,
+    "selected_events": 17,
+    "dropped_events": 15,
+    "selection_rate": 0.5312,
+    "raw_size_bytes": 18937,
+    "selected_size_bytes": 13630,
+    "storage_reduction_rate": 0.2802,
+    "compression_ratio": 0.7198,
+    "critical_events": 19,
+    "critical_events_selected": 17,
+    "critical_event_recall": 0.8947,
+    "avg_importance_score": 0.2394,
+    "p95_importance_score": 0.45,
+    "event_type_counts": {
+      "model_text": 14,
+      "tool_call": 6,
+      "transfer": 2,
+      "tool_result": 5,
+      "result": 4,
+      "manual_review": 1
+    },
+    "selected_event_type_counts": {
+      "tool_result": 3,
+      "result": 4,
+      "model_text": 7,
+      "tool_call": 2,
+      "manual_review": 1
+    },
+    "agent_counts": {
+      "user_proxy_agent": 4,
+      "front_office_router": 4,
+      "transaction_monitoring_agent": 9,
+      "fraud_detection_agent": 3,
+      "compliance_agent": 6,
+      "decision_making_agent": 6
+    },
+    "workflow_counts": {
+      "front_office": 31,
+      "back_office": 1
+    },
+    "keep_reason_counts": {
+      "anomaly": 4,
+      "risk": 14,
+      "decision_point": 4,
+      "importance_threshold": 4,
+      "state_change": 2,
+      "critical_event_type": 1
+    },
+    "scenario_name": "front_office_monitoring",
+    "run_index": 3,
+    "trace_id": "b2619866f7a0020e",
+    "status": "ok",
+    "error": "",
+    "runtime_seconds": 27.3036
+  },
+  {
+    "total_events": 17,
+    "selected_events": 1,
+    "dropped_events": 16,
+    "selection_rate": 0.0588,
+    "raw_size_bytes": 5580,
+    "selected_size_bytes": 243,
+    "storage_reduction_rate": 0.9565,
+    "compression_ratio": 0.0435,
+    "critical_events": 4,
+    "critical_events_selected": 1,
+    "critical_event_recall": 0.25,
+    "avg_importance_score": 0.0484,
+    "p95_importance_score": 0.13,
+    "event_type_counts": {
+      "model_text": 7,
+      "tool_call": 3,
+      "transfer": 2,
+      "tool_result": 3,
+      "state_change": 1,
+      "result": 1
+    },
+    "selected_event_type_counts": {
+      "state_change": 1
+    },
+    "agent_counts": {
+      "user_proxy_agent": 4,
+      "front_office_router": 4,
+      "chatbot_intent_agent": 3,
+      "knowledge_base_agent": 6
+    },
+    "workflow_counts": {
+      "front_office": 17
+    },
+    "keep_reason_counts": {
+      "state_change": 1
+    },
+    "scenario_name": "front_office_chatbot",
+    "run_index": 1,
+    "trace_id": "b89ea78120ee3797",
+    "status": "ok",
+    "error": "",
+    "runtime_seconds": 6.4597
+  },
+  {
+    "total_events": 20,
+    "selected_events": 1,
+    "dropped_events": 19,
+    "selection_rate": 0.05,
+    "raw_size_bytes": 8195,
+    "selected_size_bytes": 255,
+    "storage_reduction_rate": 0.9689,
+    "compression_ratio": 0.0311,
+    "critical_events": 5,
+    "critical_events_selected": 1,
+    "critical_event_recall": 0.2,
+    "avg_importance_score": 0.0493,
+    "p95_importance_score": 0.135,
+    "event_type_counts": {
+      "model_text": 8,
+      "tool_call": 4,
+      "transfer": 2,
+      "tool_result": 4,
+      "state_change": 1,
+      "result": 1
+    },
+    "selected_event_type_counts": {
+      "state_change": 1
+    },
+    "agent_counts": {
+      "user_proxy_agent": 4,
+      "front_office_router": 4,
+      "chatbot_intent_agent": 3,
+      "knowledge_base_agent": 9
+    },
+    "workflow_counts": {
+      "front_office": 18,
+      "back_office": 2
+    },
+    "keep_reason_counts": {
+      "state_change": 1
+    },
+    "scenario_name": "front_office_chatbot",
+    "run_index": 2,
+    "trace_id": "4d226fd246d91d75",
+    "status": "ok",
+    "error": "",
+    "runtime_seconds": 6.6183
+  },
+  {
+    "total_events": 17,
+    "selected_events": 1,
+    "dropped_events": 16,
+    "selection_rate": 0.0588,
+    "raw_size_bytes": 7418,
+    "selected_size_bytes": 222,
+    "storage_reduction_rate": 0.9701,
+    "compression_ratio": 0.0299,
+    "critical_events": 4,
+    "critical_events_selected": 1,
+    "critical_event_recall": 0.25,
+    "avg_importance_score": 0.0426,
+    "p95_importance_score": 0.13,
+    "event_type_counts": {
+      "model_text": 7,
+      "tool_call": 3,
+      "transfer": 2,
+      "tool_result": 3,
+      "state_change": 1,
+      "result": 1
+    },
+    "selected_event_type_counts": {
+      "state_change": 1
+    },
+    "agent_counts": {
+      "user_proxy_agent": 4,
+      "front_office_router": 4,
+      "chatbot_intent_agent": 3,
+      "knowledge_base_agent": 6
+    },
+    "workflow_counts": {
+      "front_office": 15,
+      "back_office": 2
+    },
+    "keep_reason_counts": {
+      "state_change": 1
+    },
+    "scenario_name": "front_office_chatbot",
+    "run_index": 3,
+    "trace_id": "3bd95bd932be129d",
+    "status": "ok",
+    "error": "",
+    "runtime_seconds": 5.5587
+  },
+  {
+    "total_events": 17,
+    "selected_events": 3,
+    "dropped_events": 14,
+    "selection_rate": 0.1765,
+    "raw_size_bytes": 9267,
+    "selected_size_bytes": 1461,
+    "storage_reduction_rate": 0.8423,
+    "compression_ratio": 0.1577,
+    "critical_events": 5,
+    "critical_events_selected": 3,
+    "critical_event_recall": 0.6,
+    "avg_importance_score": 0.0624,
+    "p95_importance_score": 0.201,
+    "event_type_counts": {
+      "model_text": 8,
+      "tool_call": 2,
+      "transfer": 2,
+      "tool_result": 2,
+      "state_change": 2,
+      "result": 1
+    },
+    "selected_event_type_counts": {
+      "model_text": 1,
+      "state_change": 2
+    },
+    "agent_counts": {
+      "user_proxy_agent": 4,
+      "front_office_router": 4,
+      "chatbot_intent_agent": 3,
+      "customer_service_agent": 3,
+      "transaction_processing_agent": 3
+    },
+    "workflow_counts": {
+      "back_office": 6,
+      "front_office": 11
+    },
+    "keep_reason_counts": {
+      "risk": 1,
+      "state_change": 2
+    },
+    "scenario_name": "front_office_transaction_execution",
+    "run_index": 1,
+    "trace_id": "e3542de6694fe0ef",
+    "status": "ok",
+    "error": "",
+    "runtime_seconds": 10.9456
+  },
+  {
+    "total_events": 20,
+    "selected_events": 7,
+    "dropped_events": 13,
+    "selection_rate": 0.35,
+    "raw_size_bytes": 5932,
+    "selected_size_bytes": 2233,
+    "storage_reduction_rate": 0.6236,
+    "compression_ratio": 0.3764,
+    "critical_events": 9,
+    "critical_events_selected": 7,
+    "critical_event_recall": 0.7778,
+    "avg_importance_score": 0.0911,
+    "p95_importance_score": 0.23,
+    "event_type_counts": {
+      "model_text": 9,
+      "tool_call": 3,
+      "transfer": 2,
+      "tool_result": 3,
+      "state_change": 2,
+      "result": 1
+    },
+    "selected_event_type_counts": {
+      "state_change": 2,
+      "tool_call": 1,
+      "tool_result": 1,
+      "result": 1,
+      "model_text": 2
+    },
+    "agent_counts": {
+      "user_proxy_agent": 4,
+      "front_office_router": 4,
+      "chatbot_intent_agent": 3,
+      "customer_service_agent": 3,
+      "transaction_processing_agent": 6
+    },
+    "workflow_counts": {
+      "front_office": 13,
+      "back_office": 7
+    },
+    "keep_reason_counts": {
+      "state_change": 4,
+      "anomaly": 4
+    },
+    "scenario_name": "front_office_transaction_execution",
+    "run_index": 2,
+    "trace_id": "f1787b364ba385c3",
+    "status": "ok",
+    "error": "",
+    "runtime_seconds": 8.2248
+  },
+  {
+    "total_events": 20,
+    "selected_events": 7,
+    "dropped_events": 13,
+    "selection_rate": 0.35,
+    "raw_size_bytes": 7739,
+    "selected_size_bytes": 2872,
+    "storage_reduction_rate": 0.6289,
+    "compression_ratio": 0.3711,
+    "critical_events": 9,
+    "critical_events_selected": 7,
+    "critical_event_recall": 0.7778,
+    "avg_importance_score": 0.096,
+    "p95_importance_score": 0.23,
+    "event_type_counts": {
+      "model_text": 9,
+      "tool_call": 3,
+      "transfer": 2,
+      "tool_result": 3,
+      "state_change": 2,
+      "result": 1
+    },
+    "selected_event_type_counts": {
+      "state_change": 2,
+      "tool_call": 1,
+      "tool_result": 1,
+      "result": 1,
+      "model_text": 2
+    },
+    "agent_counts": {
+      "user_proxy_agent": 4,
+      "front_office_router": 4,
+      "chatbot_intent_agent": 3,
+      "customer_service_agent": 3,
+      "transaction_processing_agent": 6
+    },
+    "workflow_counts": {
+      "back_office": 10,
+      "front_office": 10
+    },
+    "keep_reason_counts": {
+      "state_change": 4,
+      "anomaly": 4
+    },
+    "scenario_name": "front_office_transaction_execution",
+    "run_index": 3,
+    "trace_id": "728ec69bc2d6a7c3",
+    "status": "ok",
+    "error": "",
+    "runtime_seconds": 9.0308
+  },
+  {
+    "total_events": 32,
+    "selected_events": 5,
+    "dropped_events": 27,
+    "selection_rate": 0.1562,
+    "raw_size_bytes": 39620,
+    "selected_size_bytes": 9604,
+    "storage_reduction_rate": 0.7576,
+    "compression_ratio": 0.2424,
+    "critical_events": 9,
+    "critical_events_selected": 5,
+    "critical_event_recall": 0.5556,
+    "avg_importance_score": 0.0494,
+    "p95_importance_score": 0.2,
+    "event_type_counts": {
+      "model_text": 16,
+      "tool_call": 4,
+      "transfer": 2,
+      "tool_result": 4,
+      "state_change": 5,
+      "result": 1
+    },
+    "selected_event_type_counts": {
+      "state_change": 5
+    },
+    "agent_counts": {
+      "user_proxy_agent": 4,
+      "mid_office_router": 4,
+      "data_analysis_agent": 6,
+      "forecasting_agent": 3,
+      "staff_scheduling_agent": 3,
+      "support_guidance_agent": 6,
+      "validation_agent": 3,
+      "planning_summary_agent": 3
+    },
+    "workflow_counts": {
+      "mid_office": 26,
+      "back_office": 6
+    },
+    "keep_reason_counts": {
+      "state_change": 5
+    },
+    "scenario_name": "mid_office_planning",
+    "run_index": 1,
+    "trace_id": "bc311f38f9962cd3",
+    "status": "ok",
+    "error": "",
+    "runtime_seconds": 33.2876
+  },
+  {
+    "total_events": 35,
+    "selected_events": 5,
+    "dropped_events": 30,
+    "selection_rate": 0.1429,
+    "raw_size_bytes": 38373,
+    "selected_size_bytes": 7677,
+    "storage_reduction_rate": 0.7999,
+    "compression_ratio": 0.2001,
+    "critical_events": 10,
+    "critical_events_selected": 5,
+    "critical_event_recall": 0.5,
+    "avg_importance_score": 0.0514,
+    "p95_importance_score": 0.2,
+    "event_type_counts": {
+      "model_text": 17,
+      "tool_call": 5,
+      "transfer": 2,
+      "tool_result": 5,
+      "state_change": 5,
+      "result": 1
+    },
+    "selected_event_type_counts": {
+      "state_change": 5
+    },
+    "agent_counts": {
+      "user_proxy_agent": 4,
+      "mid_office_router": 4,
+      "data_analysis_agent": 6,
+      "forecasting_agent": 3,
+      "staff_scheduling_agent": 3,
+      "support_guidance_agent": 6,
+      "validation_agent": 6,
+      "planning_summary_agent": 3
+    },
+    "workflow_counts": {
+      "mid_office": 23,
+      "back_office": 12
+    },
+    "keep_reason_counts": {
+      "state_change": 5
+    },
+    "scenario_name": "mid_office_planning",
+    "run_index": 2,
+    "trace_id": "82b2405c8b92a9c1",
+    "status": "ok",
+    "error": "",
+    "runtime_seconds": 27.8649
+  },
+  {
+    "total_events": 35,
+    "selected_events": 5,
+    "dropped_events": 30,
+    "selection_rate": 0.1429,
+    "raw_size_bytes": 34457,
+    "selected_size_bytes": 6059,
+    "storage_reduction_rate": 0.8242,
+    "compression_ratio": 0.1758,
+    "critical_events": 10,
+    "critical_events_selected": 5,
+    "critical_event_recall": 0.5,
+    "avg_importance_score": 0.0514,
+    "p95_importance_score": 0.2,
+    "event_type_counts": {
+      "model_text": 17,
+      "tool_call": 5,
+      "transfer": 2,
+      "tool_result": 5,
+      "state_change": 5,
+      "result": 1
+    },
+    "selected_event_type_counts": {
+      "state_change": 5
+    },
+    "agent_counts": {
+      "user_proxy_agent": 4,
+      "mid_office_router": 4,
+      "data_analysis_agent": 6,
+      "forecasting_agent": 3,
+      "staff_scheduling_agent": 3,
+      "support_guidance_agent": 6,
+      "validation_agent": 6,
+      "planning_summary_agent": 3
+    },
+    "workflow_counts": {
+      "mid_office": 29,
+      "back_office": 6
+    },
+    "keep_reason_counts": {
+      "state_change": 5
+    },
+    "scenario_name": "mid_office_planning",
+    "run_index": 3,
+    "trace_id": "de501570bbfe09fb",
+    "status": "ok",
+    "error": "",
+    "runtime_seconds": 38.1603
+  },
+  {
+    "total_events": 35,
+    "selected_events": 6,
+    "dropped_events": 29,
+    "selection_rate": 0.1714,
+    "raw_size_bytes": 33848,
+    "selected_size_bytes": 9268,
+    "storage_reduction_rate": 0.7262,
+    "compression_ratio": 0.2738,
+    "critical_events": 10,
+    "critical_events_selected": 6,
+    "critical_event_recall": 0.6,
+    "avg_importance_score": 0.1059,
+    "p95_importance_score": 0.3,
+    "event_type_counts": {
+      "model_text": 16,
+      "tool_call": 6,
+      "transfer": 2,
+      "tool_result": 6,
+      "state_change": 4,
+      "result": 1
+    },
+    "selected_event_type_counts": {
+      "tool_result": 2,
+      "state_change": 4
+    },
+    "agent_counts": {
+      "user_proxy_agent": 4,
+      "mid_office_router": 4,
+      "risk_compliance_agent": 6,
+      "financial_data_agent": 6,
+      "loan_agent": 6,
+      "recommender_agent": 6,
+      "representative_merge_agent": 3
+    },
+    "workflow_counts": {
+      "mid_office": 34,
+      "back_office": 1
+    },
+    "keep_reason_counts": {
+      "risk": 1,
+      "anomaly": 2,
+      "importance_threshold": 1,
+      "state_change": 4
+    },
+    "scenario_name": "mid_office_rep_assist",
+    "run_index": 1,
+    "trace_id": "d38dad290f71e446",
+    "status": "ok",
+    "error": "",
+    "runtime_seconds": 17.1258
+  },
+  {
+    "total_events": 35,
+    "selected_events": 8,
+    "dropped_events": 27,
+    "selection_rate": 0.2286,
+    "raw_size_bytes": 35011,
+    "selected_size_bytes": 10838,
+    "storage_reduction_rate": 0.6904,
+    "compression_ratio": 0.3096,
+    "critical_events": 12,
+    "critical_events_selected": 8,
+    "critical_event_recall": 0.6667,
+    "avg_importance_score": 0.1263,
+    "p95_importance_score": 0.48,
+    "event_type_counts": {
+      "model_text": 16,
+      "tool_call": 6,
+      "transfer": 2,
+      "tool_result": 6,
+      "state_change": 4,
+      "result": 1
+    },
+    "selected_event_type_counts": {
+      "tool_result": 2,
+      "state_change": 4,
+      "model_text": 2
+    },
+    "agent_counts": {
+      "user_proxy_agent": 4,
+      "mid_office_router": 4,
+      "loan_agent": 6,
+      "risk_compliance_agent": 6,
+      "financial_data_agent": 6,
+      "recommender_agent": 6,
+      "representative_merge_agent": 3
+    },
+    "workflow_counts": {
+      "mid_office": 34,
+      "back_office": 1
+    },
+    "keep_reason_counts": {
+      "risk": 5,
+      "anomaly": 2,
+      "importance_threshold": 3,
+      "state_change": 4
+    },
+    "scenario_name": "mid_office_rep_assist",
+    "run_index": 2,
+    "trace_id": "8edd3747d67a1a6c",
+    "status": "ok",
+    "error": "",
+    "runtime_seconds": 20.2739
+  },
+  {
+    "total_events": 35,
+    "selected_events": 7,
+    "dropped_events": 28,
+    "selection_rate": 0.2,
+    "raw_size_bytes": 31498,
+    "selected_size_bytes": 11035,
+    "storage_reduction_rate": 0.6497,
+    "compression_ratio": 0.3503,
+    "critical_events": 11,
+    "critical_events_selected": 7,
+    "critical_event_recall": 0.6364,
+    "avg_importance_score": 0.1114,
+    "p95_importance_score": 0.4,
+    "event_type_counts": {
+      "model_text": 16,
+      "tool_call": 6,
+      "transfer": 2,
+      "tool_result": 6,
+      "state_change": 4,
+      "result": 1
+    },
+    "selected_event_type_counts": {
+      "tool_result": 2,
+      "state_change": 4,
+      "model_text": 1
+    },
+    "agent_counts": {
+      "user_proxy_agent": 4,
+      "mid_office_router": 4,
+      "financial_data_agent": 6,
+      "loan_agent": 6,
+      "risk_compliance_agent": 6,
+      "recommender_agent": 6,
+      "representative_merge_agent": 3
+    },
+    "workflow_counts": {
+      "mid_office": 34,
+      "back_office": 1
+    },
+    "keep_reason_counts": {
+      "anomaly": 2,
+      "risk": 3,
+      "importance_threshold": 2,
+      "state_change": 4
+    },
+    "scenario_name": "mid_office_rep_assist",
+    "run_index": 3,
+    "trace_id": "5a1211d7e1a88ede",
+    "status": "ok",
+    "error": "",
+    "runtime_seconds": 13.9681
+  },
+  {
+    "total_events": 38,
+    "selected_events": 8,
+    "dropped_events": 30,
+    "selection_rate": 0.2105,
+    "raw_size_bytes": 18402,
+    "selected_size_bytes": 3178,
+    "storage_reduction_rate": 0.8273,
+    "compression_ratio": 0.1727,
+    "critical_events": 13,
+    "critical_events_selected": 8,
+    "critical_event_recall": 0.6154,
+    "avg_importance_score": 0.1051,
+    "p95_importance_score": 0.25,
+    "event_type_counts": {
+      "model_text": 17,
+      "tool_call": 7,
+      "transfer": 2,
+      "tool_result": 6,
+      "result": 5,
+      "ledger_update": 1
+    },
+    "selected_event_type_counts": {
+      "model_text": 3,
+      "result": 1,
+      "tool_call": 2,
+      "ledger_update": 1,
+      "tool_result": 1
+    },
+    "agent_counts": {
+      "user_proxy_agent": 4,
+      "back_office_router": 4,
+      "validation_checkpoint_agent": 6,
+      "eod_processing_agent": 6,
+      "ledger_update_agent": 6,
+      "reconciliation_agent": 6,
+      "report_writing_agent": 6
+    },
+    "workflow_counts": {
+      "back_office": 38
+    },
+    "keep_reason_counts": {
+      "anomaly": 4,
+      "decision_point": 1,
+      "state_change": 4
+    },
+    "scenario_name": "back_office_clean",
+    "run_index": 1,
+    "trace_id": "dca86b02082fff89",
+    "status": "ok",
+    "error": "",
+    "runtime_seconds": 18.1323
+  },
+  {
+    "total_events": 38,
+    "selected_events": 8,
+    "dropped_events": 30,
+    "selection_rate": 0.2105,
+    "raw_size_bytes": 22495,
+    "selected_size_bytes": 5723,
+    "storage_reduction_rate": 0.7456,
+    "compression_ratio": 0.2544,
+    "critical_events": 13,
+    "critical_events_selected": 8,
+    "critical_event_recall": 0.6154,
+    "avg_importance_score": 0.1158,
+    "p95_importance_score": 0.29,
+    "event_type_counts": {
+      "model_text": 17,
+      "tool_call": 7,
+      "transfer": 2,
+      "tool_result": 6,
+      "result": 5,
+      "ledger_update": 1
+    },
+    "selected_event_type_counts": {
+      "result": 1,
+      "model_text": 3,
+      "tool_call": 2,
+      "ledger_update": 1,
+      "tool_result": 1
+    },
+    "agent_counts": {
+      "user_proxy_agent": 4,
+      "back_office_router": 4,
+      "validation_checkpoint_agent": 6,
+      "eod_processing_agent": 6,
+      "ledger_update_agent": 6,
+      "reconciliation_agent": 6,
+      "report_writing_agent": 6
+    },
+    "workflow_counts": {
+      "back_office": 38
+    },
+    "keep_reason_counts": {
+      "anomaly": 4,
+      "decision_point": 1,
+      "state_change": 4
+    },
+    "scenario_name": "back_office_clean",
+    "run_index": 2,
+    "trace_id": "e6ab95afa6f0f3e0",
+    "status": "ok",
+    "error": "",
+    "runtime_seconds": 31.4091
+  },
+  {
+    "total_events": 38,
+    "selected_events": 7,
+    "dropped_events": 31,
+    "selection_rate": 0.1842,
+    "raw_size_bytes": 18073,
+    "selected_size_bytes": 3462,
+    "storage_reduction_rate": 0.8084,
+    "compression_ratio": 0.1916,
+    "critical_events": 12,
+    "critical_events_selected": 7,
+    "critical_event_recall": 0.5833,
+    "avg_importance_score": 0.0986,
+    "p95_importance_score": 0.245,
+    "event_type_counts": {
+      "model_text": 17,
+      "tool_call": 7,
+      "transfer": 2,
+      "tool_result": 6,
+      "result": 5,
+      "ledger_update": 1
+    },
+    "selected_event_type_counts": {
+      "result": 1,
+      "model_text": 2,
+      "tool_call": 2,
+      "ledger_update": 1,
+      "tool_result": 1
+    },
+    "agent_counts": {
+      "user_proxy_agent": 4,
+      "back_office_router": 4,
+      "validation_checkpoint_agent": 6,
+      "eod_processing_agent": 6,
+      "ledger_update_agent": 6,
+      "reconciliation_agent": 6,
+      "report_writing_agent": 6
+    },
+    "workflow_counts": {
+      "back_office": 38
+    },
+    "keep_reason_counts": {
+      "anomaly": 3,
+      "state_change": 4
+    },
+    "scenario_name": "back_office_clean",
+    "run_index": 3,
+    "trace_id": "6c617cd12ea40b23",
+    "status": "ok",
+    "error": "",
+    "runtime_seconds": 16.1122
+  },
+  {
+    "total_events": 14,
+    "selected_events": 8,
+    "dropped_events": 6,
+    "selection_rate": 0.5714,
+    "raw_size_bytes": 4107,
+    "selected_size_bytes": 3147,
+    "storage_reduction_rate": 0.2337,
+    "compression_ratio": 0.7663,
+    "critical_events": 10,
+    "critical_events_selected": 8,
+    "critical_event_recall": 0.8,
+    "avg_importance_score": 0.2446,
+    "p95_importance_score": 0.45,
+    "event_type_counts": {
+      "model_text": 5,
+      "tool_call": 3,
+      "transfer": 2,
+      "tool_result": 3,
+      "result": 1
+    },
+    "selected_event_type_counts": {
+      "model_text": 5,
+      "tool_call": 1,
+      "tool_result": 1,
+      "result": 1
+    },
+    "agent_counts": {
+      "user_proxy_agent": 4,
+      "back_office_router": 4,
+      "validation_checkpoint_agent": 6
+    },
+    "workflow_counts": {
+      "back_office": 14
+    },
+    "keep_reason_counts": {
+      "anomaly": 8,
+      "risk": 3,
+      "decision_point": 1,
+      "importance_threshold": 3
+    },
+    "scenario_name": "back_office_mismatch",
+    "run_index": 1,
+    "trace_id": "9a951487e7a0e129",
+    "status": "ok",
+    "error": "",
+    "runtime_seconds": 5.6663
+  },
+  {
+    "total_events": 38,
+    "selected_events": 31,
+    "dropped_events": 7,
+    "selection_rate": 0.8158,
+    "raw_size_bytes": 20848,
+    "selected_size_bytes": 19580,
+    "storage_reduction_rate": 0.0608,
+    "compression_ratio": 0.9392,
+    "critical_events": 33,
+    "critical_events_selected": 31,
+    "critical_event_recall": 0.9394,
+    "avg_importance_score": 0.343,
+    "p95_importance_score": 0.58,
+    "event_type_counts": {
+      "model_text": 17,
+      "tool_call": 7,
+      "transfer": 2,
+      "tool_result": 6,
+      "result": 5,
+      "ledger_update": 1
+    },
+    "selected_event_type_counts": {
+      "model_text": 16,
+      "tool_call": 5,
+      "tool_result": 4,
+      "result": 5,
+      "ledger_update": 1
+    },
+    "agent_counts": {
+      "user_proxy_agent": 4,
+      "back_office_router": 4,
+      "validation_checkpoint_agent": 6,
+      "eod_processing_agent": 6,
+      "ledger_update_agent": 6,
+      "reconciliation_agent": 6,
+      "report_writing_agent": 6
+    },
+    "workflow_counts": {
+      "back_office": 38
+    },
+    "keep_reason_counts": {
+      "anomaly": 31,
+      "risk": 5,
+      "decision_point": 2,
+      "importance_threshold": 12,
+      "state_change": 4
+    },
+    "scenario_name": "back_office_mismatch",
+    "run_index": 2,
+    "trace_id": "e4153c3e10a05ee7",
+    "status": "ok",
+    "error": "",
+    "runtime_seconds": 26.3289
+  },
+  {
+    "total_events": 38,
+    "selected_events": 31,
+    "dropped_events": 7,
+    "selection_rate": 0.8158,
+    "raw_size_bytes": 20150,
+    "selected_size_bytes": 17873,
+    "storage_reduction_rate": 0.113,
+    "compression_ratio": 0.887,
+    "critical_events": 33,
+    "critical_events_selected": 31,
+    "critical_event_recall": 0.9394,
+    "avg_importance_score": 0.3242,
+    "p95_importance_score": 0.58,
+    "event_type_counts": {
+      "model_text": 17,
+      "tool_call": 7,
+      "transfer": 2,
+      "tool_result": 5,
+      "result": 5,
+      "ledger_update": 1,
+      "exception": 1
+    },
+    "selected_event_type_counts": {
+      "model_text": 16,
+      "tool_call": 5,
+      "tool_result": 3,
+      "result": 5,
+      "ledger_update": 1,
+      "exception": 1
+    },
+    "agent_counts": {
+      "user_proxy_agent": 4,
+      "back_office_router": 4,
+      "validation_checkpoint_agent": 6,
+      "eod_processing_agent": 6,
+      "ledger_update_agent": 6,
+      "reconciliation_agent": 6,
+      "exception_agent": 6
+    },
+    "workflow_counts": {
+      "back_office": 38
+    },
+    "keep_reason_counts": {
+      "anomaly": 31,
+      "decision_point": 3,
+      "importance_threshold": 9,
+      "state_change": 4,
+      "risk": 4,
+      "critical_event_type": 1
+    },
+    "scenario_name": "back_office_mismatch",
+    "run_index": 3,
+    "trace_id": "df8b655d8cf5c317",
+    "status": "ok",
+    "error": "",
+    "runtime_seconds": 23.4217
+  }
+]

@@ -1,0 +1,12 @@
+[
+  {
+    "title": "Home Equity Inquiry Flow",
+    "body": "Confirm property ownership intent, gather estimated property value, current lien balance, income range, and purpose of funds. Then route for prequalification if basic criteria are met.",
+    "tags": "home equity heloc documents flow"
+  },
+  {
+    "title": "Personal Loan Triage",
+    "body": "Check requested amount, purpose, credit profile indicators, and affordability. Offer secured or alternative products when unsecured eligibility looks weak.",
+    "tags": "personal loan triage underwriting"
+  }
+]

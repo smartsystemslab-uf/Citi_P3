@@ -1,0 +1,22 @@
+[
+  {
+    "question": "How do I dispute a debit card transaction?",
+    "answer": "Open a dispute in the mobile app or call customer service within 60 days of the statement date. Provisional credit may be issued while the claim is investigated.",
+    "tags": "dispute debit card fraud chargeback timeline"
+  },
+  {
+    "question": "How do I activate a new card?",
+    "answer": "You can activate the card in the mobile app, online banking, or by calling the activation number on the sticker.",
+    "tags": "card activation new card"
+  },
+  {
+    "question": "What are wire cut-off times?",
+    "answer": "Domestic same-day wires submitted before 5 PM Eastern are usually processed the same business day. International wire timing varies by destination and compliance review.",
+    "tags": "wire cutoff payment transfer"
+  },
+  {
+    "question": "How do I place a travel notice?",
+    "answer": "Travel notices can be submitted through customer service or secure message, but transaction monitoring may still challenge unusual activity if risk signals appear.",
+    "tags": "travel notice card overseas"
+  }
+]

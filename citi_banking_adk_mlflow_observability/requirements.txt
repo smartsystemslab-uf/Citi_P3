@@ -1,0 +1,7 @@
+google-adk>=1.18.0
+litellm>=1.67.0
+python-dotenv>=1.0.1
+pydantic>=2.8.0
+mlflow[genai]>=3.10.0
+opentelemetry-sdk>=1.33.0
+opentelemetry-exporter-otlp-proto-http>=1.33.0

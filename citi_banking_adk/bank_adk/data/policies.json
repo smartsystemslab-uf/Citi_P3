@@ -1,0 +1,27 @@
+[
+  {
+    "title": "AML Escalation for Unusual Outbound Transfers",
+    "body": "Escalate outbound transfers when the amount is materially above normal behavior, the counterparty is new, or the geography, timing, and channel materially differ from the customer profile.",
+    "tags": "aml transfer suspicious anomaly geography counterparty"
+  },
+  {
+    "title": "Customer Verification and KYC Usage",
+    "body": "Verified KYC supports lower operational friction, but a verified profile does not override transaction-specific fraud or sanctions concerns.",
+    "tags": "kyc verification compliance onboarding"
+  },
+  {
+    "title": "Manual Review Threshold Policy",
+    "body": "High-risk or low-confidence decisions must be sent to manual review instead of being automatically approved or rejected.",
+    "tags": "manual review confidence threshold escalation"
+  },
+  {
+    "title": "Representative Assist Guardrails",
+    "body": "Internal assistants may recommend products or process steps, but final customer-facing offers must respect product eligibility, suitability, and applicable risk controls.",
+    "tags": "representative assist product suitability risk"
+  },
+  {
+    "title": "End-of-Day Reconciliation Policy",
+    "body": "Back-office reporting may proceed only after reconciliation confirms that the expected totals and posted ledger totals match within tolerance. Any mismatch must open an exception case.",
+    "tags": "eod reconciliation mismatch reporting exception"
+  }
+]

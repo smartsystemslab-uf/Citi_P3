@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "citi-banking-adk"
+version = "0.1.0"
+description = "Google ADK implementation of a multi-agent banking operations architecture"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "google-adk>=1.18.0",
+  "litellm>=1.67.0",
+  "python-dotenv>=1.0.1",
+  "pydantic>=2.8.0",
+  "mlflow[genai]>=3.10.0",
+  "opentelemetry-sdk>=1.33.0",
+  "opentelemetry-exporter-otlp-proto-http>=1.33.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["bank_adk*"]

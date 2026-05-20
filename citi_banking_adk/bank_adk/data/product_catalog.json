@@ -1,0 +1,26 @@
+[
+  {
+    "name": "High Yield Savings Plus",
+    "summary": "Liquid cash product for customers keeping large idle balances and wanting better yield without market exposure.",
+    "eligibility": "Available to verified retail customers with linked checking.",
+    "tags": "cash savings yield deposit liquidity"
+  },
+  {
+    "name": "Premier Relationship Checking",
+    "summary": "Bundle product for customers who keep larger balances and want fee waivers plus service perks.",
+    "eligibility": "Requires combined balances over threshold.",
+    "tags": "checking relationship fees premium"
+  },
+  {
+    "name": "Home Equity Line of Credit",
+    "summary": "Revolving credit option for qualified homeowners needing flexible borrowing against home equity.",
+    "eligibility": "Subject to collateral review, income verification, and underwriting.",
+    "tags": "heloc loan home equity borrowing"
+  },
+  {
+    "name": "Automated Investment Sweep Referral",
+    "summary": "Referral path for customers with excess cash who may benefit from managed investing rather than deposit-only balances.",
+    "eligibility": "Requires investment suitability discussion.",
+    "tags": "investment sweep referral idle cash"
+  }
+]

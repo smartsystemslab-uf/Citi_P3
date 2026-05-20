@@ -1,0 +1,12 @@
+[
+  {
+    "title": "Dispute Queue Surge Playbook",
+    "body": "Shift senior representatives into dispute triage, reserve overflow capacity for chargeback intake, and tighten callback SLAs for unresolved fraud claims.",
+    "tags": "dispute surge triage fraud backlog"
+  },
+  {
+    "title": "Mortgage Inquiry Overflow Playbook",
+    "body": "Route simple rate and document questions to specialists with prepared scripts and push prequalification follow-up into scheduled callbacks.",
+    "tags": "mortgage inquiry support script overflow"
+  }
+]

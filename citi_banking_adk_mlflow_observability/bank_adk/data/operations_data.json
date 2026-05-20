@@ -1,0 +1,22 @@
+[
+  {
+    "date": "2026-04-21",
+    "region": "East",
+    "call_volume": 1380,
+    "chat_volume": 920,
+    "avg_handle_time_minutes": 8.6,
+    "backlog_cases": 124,
+    "peak_interval": "11:00-14:00",
+    "notes": "Mortgage inquiry spike and higher dispute volume after holiday weekend."
+  },
+  {
+    "date": "2026-04-21",
+    "region": "Central",
+    "call_volume": 1110,
+    "chat_volume": 760,
+    "avg_handle_time_minutes": 7.9,
+    "backlog_cases": 91,
+    "peak_interval": "10:00-13:00",
+    "notes": "Stable payments traffic with moderate card replacement demand."
+  }
+]
