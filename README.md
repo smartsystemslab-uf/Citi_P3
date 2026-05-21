@@ -20,7 +20,7 @@ Please go into the corresponding folder and follow its local README or setup gui
 
 ---
 
-### 1. `citi_banking_adk/`
+## 1. `citi_banking_adk/`
 
 This folder contains the main agentic banking system built with Google ADK.
 
@@ -35,7 +35,24 @@ It includes the core multi-agent workflows for banking operations, such as:
 
 This module is responsible for running the banking agents and coordinating the overall agent workflow.
 
-For detailed setup, environment configuration, and execution commands, please check the documentation inside this folder.
+In addition, this folder also contains the `LOG_OBSERVABILITY_STUDY` component.  
+This component is used to study and implement a log observability and log compression algorithm for agent execution logs.
+
+The purpose of `LOG_OBSERVABILITY_STUDY` is to reduce the size of raw agent logs while preserving important information such as:
+
+- Critical events
+- Tool calls
+- Agent decisions
+- State changes
+- Error messages
+- Important intermediate outputs
+- Key workflow traces
+
+Instead of storing every raw log entry, the log compression algorithm selects the most useful events and keeps the information needed for later analysis, debugging, monitoring, and auditing.
+
+This makes the observability system more efficient because it reduces log storage cost while still keeping the important execution behavior of the agent system visible.
+
+For detailed setup, environment configuration, execution commands, and log compression usage, please check the documentation inside this folder.
 
 ---
 
