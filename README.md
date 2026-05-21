@@ -14,7 +14,7 @@ Learn more about integration test here: https://circleci.com/blog/unit-testing-v
 
 ---
 
-## Viewer Guidelines:
+## User Guidelines:
 Each folder is an independent module with its own internal documentation and deployment steps.  
 Please go into the corresponding folder and follow its local README or setup guide for detailed installation and execution instructions.
 
