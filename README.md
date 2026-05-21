@@ -11,8 +11,8 @@ Learn more about integration test here: https://circleci.com/blog/unit-testing-v
 3. The use of AI tools and other unit testing tools is encouraged. Please use whichever tools work best for your workflow.
 
 4. When pushing changes to the repository, please include a brief description of what was changed and why the change was necessary.
-    
-5. Project structure and guildlines will be updated soon.
+
+---
 
 ## Viewer Guidelines:
 Each folder is an independent module with its own internal documentation and deployment steps.  
