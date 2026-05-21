@@ -1,5 +1,6 @@
 # Citi-Bank-P3
-The system will leverage novel behavioral intent recognition and hardware acceleration to secure environments containing up to millions of autonomous agents. 
+This repository contains the main components of the Citi Banking P3 project.  
+The project focuses on building an agentic AI banking system, backend banking services, MCP-based tool integration, and MLflow-based observability for monitoring agent behavior.
 
 ## Developer Guidelines:
 1. For every script you add here, please make sure you have ensure there is 100% unit test coverage. It's no need to post your unit test code here, but in the future, if our project is large enough as an industry-level project, unit test code is required to be committed to the repository. 
@@ -13,3 +14,7 @@ Learn more about integration test here: https://circleci.com/blog/unit-testing-v
 4. When pushing changes to the repository, please include a brief description of what was changed and why the change was necessary.
     
 5. Project structure and guildlines will be updated soon.
+
+## Viewer Guidelines:
+Each folder is an independent module with its own internal documentation and deployment steps.  
+Please go into the corresponding folder and follow its local README or setup guide for detailed installation and execution instructions.
