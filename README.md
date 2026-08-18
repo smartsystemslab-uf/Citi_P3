@@ -2,7 +2,7 @@
 This repository contains the main components of the Citi Banking P3 project. The project focuses on building an agentic AI banking system, backend banking services, MCP-based tool integration, and MLflow-based observability for monitoring agent behavior.
 
 ## Developer Guidelines:
-1. For every script you add here, please make sure you have ensure there is 100% unit test coverage. It's no need to post your unit test code here, but in the future, if our project is large enough as an industry-level project, unit test code is required to be committed to the repository. 
+1. For every script you add here, please make sure you have ensure there is 100% unit test coverage. It's REQUIRED to post your unit test code here, since our project is large enough as an open-source project, unit test code is also required to be committed to the repository. 
 Learn more about unit test here: https://www.ibm.com/think/topics/unit-testing.
 
 2. Every `.py` file or other executable file added to this project must also have corresponding integration tests codes included in the repository. All integration tests must pass before submission. 
