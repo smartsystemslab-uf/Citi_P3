@@ -266,7 +266,9 @@ def init_db(seed: bool = True) -> None:
     Base.metadata.create_all(bind=engine)
     if not seed:
         return
-    db: Session = SessionLocal()
+    # Seed rows are module-level templates and are inspected again on idempotent
+    # calls. Keep their loaded attributes available after this session commits.
+    db: Session = SessionLocal(expire_on_commit=False)
     try:
         for item in SEED_CUSTOMERS:
             if not db.scalar(select(Customer).where(Customer.customer_id == item.customer_id)):

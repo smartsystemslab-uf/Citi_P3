@@ -36,6 +36,7 @@ def build_root_agent(mcp_session=None, mcp_tools=None) -> LlmAgent:
         model=build_model(),
         description="Primary entry-point agent that routes requests into front office, mid office, or back office banking workflows.",
         instruction="You are the shared user proxy and conversable entry point for the banking operations platform. Route customer-facing requests to front_office_router. Route internal planning and representative support to mid_office_router. Route scheduled operational processing, reconciliation, and reporting to back_office_router. Do not solve domain tasks yourself when a specialist workflow exists.",
+        tools=agent_tools,
         sub_agents=[build_front_office_router(), build_mid_office_router(), build_back_office_router()],
         output_key="root_routing_result",
     )
