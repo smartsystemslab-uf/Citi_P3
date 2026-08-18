@@ -1,3 +1,4 @@
+from datetime import date
 from uuid import uuid4
 
 
@@ -151,3 +152,46 @@ def test_high_risk_and_nonexecuting_transfer_paths(client):
     assert held.status_code == 200
     assert held.json()["status"] == "approve"
 
+
+def test_mid_and_back_office_mcp_contract_endpoints(client):
+    busy = client.get("/mid-office/workload/BR-001")
+    fallback = client.get("/mid-office/workload/UNKNOWN")
+    assert busy.json()["queue_length"] == 18
+    assert fallback.json()["queue_length"] == 8
+
+    proposed = client.post(
+        "/mid-office/rebalance",
+        json={"from": "BR-002", "to": "BR-001", "count": 10},
+    )
+    assert proposed.json()["workload_balance_score"] == 1.0
+    assert client.post(
+        "/mid-office/rebalance",
+        json={"from": "BR-002", "to": "BR-001", "count": 0},
+    ).status_code == 422
+
+    high_balance = client.get("/mid-office/affinity/CUST-001")
+    low_balance = client.get("/mid-office/affinity/CUST-002")
+    assert "High-Yield Savings" in high_balance.json()["products"]
+    assert "Automatic Savings" in low_balance.json()["products"]
+    assert client.get("/mid-office/affinity/missing").status_code == 404
+
+    review_report = client.post("/back-office/reconcile", params={"date": date.today().isoformat()})
+    clean_report = client.post("/back-office/reconcile", params={"date": "1999-01-01"})
+    assert review_report.status_code == 200
+    assert review_report.json()["status"] in {"review_required", "reconciled"}
+    assert clean_report.json()["status"] == "reconciled"
+
+    report_id = review_report.json()["report_id"]
+    mismatch = client.get(f"/back-office/mismatches/{report_id}")
+    assert mismatch.json()["report_id"] == report_id
+    assert client.get("/back-office/mismatches/missing").status_code == 404
+
+    correction = client.post(
+        "/back-office/resolve/TXN-1001",
+        json={"correction_amount": 4.25, "note": "unit correction"},
+    )
+    assert correction.json()["status"] == "recorded"
+    assert client.post(
+        "/back-office/resolve/missing",
+        json={"correction_amount": 4.25, "note": "unit correction"},
+    ).status_code == 404

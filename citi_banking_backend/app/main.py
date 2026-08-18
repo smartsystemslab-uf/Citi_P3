@@ -1,12 +1,17 @@
+import json
+import uuid
+from datetime import date, datetime, time, timedelta
+
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 from fastapi import Depends, FastAPI, HTTPException, Query
 from .database import get_db
-from .models import Account, Customer, Policy, Rule, Transaction
+from .models import Account, AuditLog, Customer, Policy, Rule, Transaction
 from .schemas import (
     AccountCreate, AccountOut, CustomerCreate, CustomerOut, PolicyCreate, PolicyOut,
     RuleCreate, RuleOut, RiskDecision, TransactionEvaluateRequest, TransactionOut,
-    TransferRequest, TransactionStatusUpdate
+    LedgerCorrectionRequest, StaffingAdjustmentRequest, TransferRequest,
+    TransactionStatusUpdate,
 )
 from .banking_logic import evaluate_transaction, execute_transfer
 from .seed import init_db
@@ -250,3 +255,112 @@ def update_transaction_status(
     db.commit()
     db.refresh(tx)
     return tx
+
+
+# Synthetic operations endpoints consumed by the MCP mid-office tools. They use
+# the same customer/account database as the rest of the demo so cross-service
+# integration tests exercise a real persistence boundary.
+@app.get("/mid-office/workload/{branch_id}")
+def get_branch_workload(branch_id: str):
+    branch_profiles = {
+        "BR-001": {"queue_length": 18, "average_wait_minutes": 24, "available_tellers": 2, "total_staff": 7},
+        "BR-002": {"queue_length": 4, "average_wait_minutes": 7, "available_tellers": 5, "total_staff": 7},
+    }
+    profile = branch_profiles.get(
+        branch_id,
+        {"queue_length": 8, "average_wait_minutes": 12, "available_tellers": 3, "total_staff": 5},
+    )
+    return {"branch_id": branch_id, **profile}
+
+
+@app.post("/mid-office/rebalance")
+def propose_staffing_adjustment(payload: StaffingAdjustmentRequest):
+    improvement = min(0.1 * payload.staff_count, 0.5)
+    return {
+        "from_branch": payload.from_branch,
+        "to_branch": payload.to_branch,
+        "staff_count": payload.staff_count,
+        "workload_balance_score": round(0.5 + improvement, 2),
+        "status": "proposed",
+    }
+
+
+@app.get("/mid-office/affinity/{customer_id}")
+def get_customer_product_affinity(customer_id: str, db: Session = Depends(get_db)):
+    customer = db.scalar(select(Customer).where(Customer.customer_id == customer_id))
+    if not customer:
+        raise HTTPException(status_code=404, detail="customer not found")
+    accounts = db.scalars(select(Account).where(Account.customer_id == customer_id)).all()
+    total_balance = sum(account.balance for account in accounts)
+    products = ["High-Yield Savings"] if total_balance >= 25000 else ["Automatic Savings"]
+    if customer.risk_level in {"low", "medium"}:
+        products.append("Home Equity Consultation")
+    return {
+        "customer_id": customer_id,
+        "products": products,
+        "basis": {"total_balance_band": "25000_plus" if total_balance >= 25000 else "under_25000", "risk_level": customer.risk_level},
+    }
+
+
+@app.post("/back-office/reconcile")
+def trigger_eod_reconciliation(date: date = Query(...), db: Session = Depends(get_db)):
+    start = datetime.combine(date, time.min)
+    end = start + timedelta(days=1)
+    transactions = db.scalars(
+        select(Transaction).where(and_(Transaction.created_at >= start, Transaction.created_at < end))
+    ).all()
+    review_items = [
+        {
+            "transaction_id": tx.transaction_id,
+            "account_id": tx.from_account_id,
+            "amount": tx.amount,
+            "reason": tx.decision_reason,
+        }
+        for tx in transactions
+        if tx.status.lower() in {"manual_review", "pending_review", "rejected"}
+    ]
+    report_id = f"RECON-{date.isoformat()}-{uuid.uuid4().hex[:8].upper()}"
+    payload = {
+        "report_id": report_id,
+        "business_date": date.isoformat(),
+        "transaction_count": len(transactions),
+        "transaction_total": round(sum(tx.amount for tx in transactions), 2),
+        "status": "review_required" if review_items else "reconciled",
+        "mismatches": review_items,
+    }
+    db.add(AuditLog(event_type="reconciliation_report", actor=report_id, payload=json.dumps(payload)))
+    db.commit()
+    return payload
+
+
+@app.get("/back-office/mismatches/{report_id}")
+def get_reconciliation_mismatches(report_id: str, db: Session = Depends(get_db)):
+    audit = db.scalar(
+        select(AuditLog).where(
+            and_(AuditLog.event_type == "reconciliation_report", AuditLog.actor == report_id)
+        )
+    )
+    if not audit:
+        raise HTTPException(status_code=404, detail="reconciliation report not found")
+    payload = json.loads(audit.payload)
+    return {"report_id": report_id, "mismatches": payload.get("mismatches", [])}
+
+
+@app.post("/back-office/resolve/{transaction_id}")
+def resolve_ledger_entry(
+    transaction_id: str,
+    payload: LedgerCorrectionRequest,
+    db: Session = Depends(get_db),
+):
+    tx = db.scalar(select(Transaction).where(Transaction.transaction_id == transaction_id))
+    if not tx:
+        raise HTTPException(status_code=404, detail="transaction not found")
+    correction = {
+        "transaction_id": transaction_id,
+        "correction_amount": payload.correction_amount,
+        "note": payload.note,
+        "status": "recorded",
+    }
+    db.add(AuditLog(event_type="ledger_correction", actor="back_office", payload=json.dumps(correction)))
+    db.commit()
+    return correction

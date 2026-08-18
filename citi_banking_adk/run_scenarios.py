@@ -2,6 +2,8 @@ import argparse
 import asyncio
 import json
 import os
+import sys
+from pathlib import Path
 
 from dotenv import load_dotenv
 from bank_adk.runner import run_many
@@ -50,8 +52,8 @@ async def main():
             '''
 
     server_params = StdioServerParameters(
-        command="python",
-        args=["../citi_banking_mcp_server/mcp_server.py"],  # Ensure this filename is exactly correct
+        command=sys.executable,
+        args=[str(Path(__file__).resolve().parents[1] / "citi_banking_mcp_server" / "mcp_server.py")],
         env=os.environ.copy()
     )
 

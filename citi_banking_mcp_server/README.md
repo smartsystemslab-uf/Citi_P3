@@ -51,13 +51,13 @@ This variable defines the backend banking API base URL.
 Default value:
 
 ```bash
-http://localhost:8000/api/v1
+http://localhost:8000
 ```
 
 Example:
 
 ```bash
-BANKING_BACKEND_URL=http://localhost:8000/api/v1
+BANKING_BACKEND_URL=http://localhost:8000
 ```
 
 ### `MCP_MODE`

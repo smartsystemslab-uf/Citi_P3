@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 class CustomerCreate(BaseModel):
     customer_id: str
@@ -98,3 +98,16 @@ class TransactionStatusUpdate(BaseModel):
     decision_reason: str
     class Config:
         from_attributes = True
+
+
+class StaffingAdjustmentRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    from_branch: str = Field(alias="from")
+    to_branch: str = Field(alias="to")
+    staff_count: int = Field(alias="count", gt=0)
+
+
+class LedgerCorrectionRequest(BaseModel):
+    correction_amount: float
+    note: str = Field(min_length=1)

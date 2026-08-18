@@ -4,6 +4,8 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+_PACKAGE_DIR = Path(__file__).resolve().parent
+
 
 @dataclass(frozen=True)
 class Settings:
@@ -22,9 +24,9 @@ class Settings:
     mlflow_environment: str = os.getenv("MLFLOW_ENVIRONMENT", "dev")
     mlflow_otlp_endpoint: str = os.getenv("MLFLOW_OTLP_ENDPOINT", "").strip()
 
-    package_dir: Path = Path(__file__).resolve().parent
-    data_dir: Path = package_dir / "data"
-    runtime_dir: Path = package_dir / ".runtime"
+    package_dir: Path = _PACKAGE_DIR
+    data_dir: Path = Path(os.getenv("BANKING_ADK_DATA_DIR", str(_PACKAGE_DIR / "data"))).expanduser()
+    runtime_dir: Path = Path(os.getenv("BANKING_ADK_RUNTIME_DIR", str(_PACKAGE_DIR / ".runtime"))).expanduser()
 
     @property
     def api_base(self) -> str:

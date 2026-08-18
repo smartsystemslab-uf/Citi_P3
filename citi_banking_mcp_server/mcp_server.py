@@ -8,7 +8,7 @@ import json
 load_dotenv()
 
 # Define where your core REST API lives (defaulting to localhost for dev)
-BACKEND_API_URL = os.getenv("BANKING_BACKEND_URL", "http://localhost:8000/api/v1")
+BACKEND_API_URL = os.getenv("BANKING_BACKEND_URL", "http://localhost:8000").rstrip("/")
 
 # Initialize the MCP Server
 # The name "CitiBank-MCP-Service" will be visible to the connecting AI agent
