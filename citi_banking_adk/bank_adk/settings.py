@@ -10,7 +10,7 @@ class Settings:
     app_name: str = os.getenv("BANKING_ADK_APP_NAME", "citi_banking_adk")
     user_id: str = os.getenv("BANKING_ADK_USER_ID", "demo_user")
     session_id: str = os.getenv("BANKING_ADK_SESSION_ID", "demo_session")
-    api_key: str = os.getenv("UF_NAVIGATOR_API_KEY", "sk-66nK7nVXXHAJMvU_-HJN0Q")
+    api_key: str = os.getenv("UF_NAVIGATOR_API_KEY", "sk-ZaCfo0C2j4M1YhMmMn6YmQ")
     base_url: str = os.getenv("UF_NAVIGATOR_BASE_URL", "https://api.ai.it.ufl.edu")
     model_name: str = os.getenv("UF_NAVIGATOR_MODEL", "gpt-oss-20b")
     package_dir: Path = _PACKAGE_DIR
