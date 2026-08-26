@@ -5,6 +5,9 @@ plugin attached directly to the real `google-adk` `App`/`Runner`, protecting
 the actual CITI-MAS multi-agent system as it runs — real CLI message in,
 real LLM-driven agent routing, real tool calls, real JSON out.
 
+For a precise file-by-file record of what was already here versus what was
+fixed/added, see [`NATIVE_ZERO_TRUST_CHANGELOG.md`](NATIVE_ZERO_TRUST_CHANGELOG.md).
+
 It is a different thing from `integrated_demo/` in the Backplane repo, which
 is a harness that calls the PEP/PDP/Permit-Lease chain and the original Citi
 tools itself, in an order the harness script decides. That approach proves
