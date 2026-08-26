@@ -7,7 +7,6 @@ from google.adk.runners import InMemoryRunner
 from bank_adk.app import create_app
 
 
-
 IMPORTANT_RESULT_KEYS = {
     "fo_decision_report",
     "fo_knowledge_answer",
@@ -111,40 +110,89 @@ def compact_debug_trace(events: list[Any]) -> list[dict[str, Any]]:
     return out
 
 
-async def run_message(message: str, mcp_session=None, mcp_tools=None, compact: bool = True):
-    
-    # 1. Initialize the ADK App using the factory function we built.
-    # Pass the raw tools directly in; do NOT call .register_tools()
-    app = create_app(mcp_session=mcp_session, mcp_tools=mcp_tools)
+def _zero_trust_plugin(app: Any):
+    for plugin in list(getattr(app, "plugins", None) or getattr(app, "_citi_zero_trust_plugins", None) or []):
+        if getattr(plugin, "name", "") == "citi_zero_trust_backplane":
+            return plugin
+    return None
 
-    # 2. Execute the runner
-    runner = InMemoryRunner(app=app)
+
+async def run_message(
+    message: str,
+    mcp_session=None,
+    mcp_tools=None,
+    compact: bool = True,
+    zero_trust_config=None,
+    include_zero_trust_status: bool = False,
+):
+    # Build the original CITI-MAS App. With Zero Trust enabled, the native ADK
+    # App itself carries the enforcement plugin.
+    app = create_app(
+        mcp_session=mcp_session,
+        mcp_tools=mcp_tools,
+        zero_trust_config=zero_trust_config,
+    )
+    zt_plugin = _zero_trust_plugin(app)
+
+    # Modern ADK: plugins are part of App. Compatibility fallback: older ADK
+    # releases accepted plugins on Runner instead. Do not silently construct an
+    # unprotected Runner if App ignored the plugins field.
+    configured_plugins = list(getattr(app, "_citi_zero_trust_plugins", None) or [])
+    app_plugins = list(getattr(app, "plugins", None) or [])
+    if configured_plugins and not app_plugins:
+        # Legacy ADK compatibility: Runner cannot receive both `app=` and
+        # `plugins=` at the same time.  Use the original root agent/app name
+        # while keeping the same native execution graph.
+        runner = InMemoryRunner(
+            agent=app.root_agent,
+            app_name=app.name,
+            plugins=configured_plugins,
+        )
+    else:
+        runner = InMemoryRunner(app=app)
 
     buf_out = io.StringIO()
     buf_err = io.StringIO()
-    with redirect_stdout(buf_out), redirect_stderr(buf_err):
-        events = await runner.run_debug(message)
+    try:
+        with redirect_stdout(buf_out), redirect_stderr(buf_err):
+            events = await runner.run_debug(message)
+        result: Any = compact_debug_trace(events) if compact else events
+        if zt_plugin is not None:
+            result = zt_plugin.protect_final_output(result)
+        if include_zero_trust_status and zt_plugin is not None:
+            return {
+                "result": result,
+                "zero_trust": zt_plugin.trace_summary(),
+            }
+        return result
+    finally:
+        close = getattr(runner, "close", None)
+        if callable(close):
+            maybe = close()
+            if hasattr(maybe, "__await__"):
+                await maybe
 
-    return compact_debug_trace(events) if compact else events
 
-
-async def run_many(messages: list[str], mcp_session=None, compact: bool = True):
+async def run_many(
+    messages: list[str],
+    mcp_session=None,
+    compact: bool = True,
+    zero_trust_config=None,
+):
     results = []
-    
-    # 1. Fetch available tools from the MCP server if a session exists
     available_tools = []
     if mcp_session:
-        # Ask the server what it can do
         tools_response = await mcp_session.list_tools()
         available_tools = tools_response.tools
 
-    # 2. Loop through the scenarios and pass the tools down
     for message in messages:
-        results.append(await run_message(
-            message, 
-            mcp_session=mcp_session,        # Pass the active connection
-            mcp_tools=available_tools,      # Pass the fetched tools
-            compact=compact
-        ))
-        
+        results.append(
+            await run_message(
+                message,
+                mcp_session=mcp_session,
+                mcp_tools=available_tools,
+                compact=compact,
+                zero_trust_config=zero_trust_config,
+            )
+        )
     return results

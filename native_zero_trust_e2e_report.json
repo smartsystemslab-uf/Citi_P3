@@ -1,0 +1,40 @@
+[
+  {
+    "scenario": "front_office_faq",
+    "ok": true,
+    "attempts_used": 1,
+    "checks": [
+      {
+        "description": "no boundary fell through to NO_GENERATED_PEP_FOR_NATIVE_PATH",
+        "passed": true,
+        "detail": "",
+        "precondition": false
+      },
+      {
+        "description": "root -> front_office_router handoff was authorized (not blocked)",
+        "passed": true,
+        "detail": "{\"allowed\": true, \"authorization_latency_ms\": 9.2672, \"caller_runtime_id\": \"user_proxy_agent\", \"decision\": \"ALLOW_WITH_OBLIGATIONS\", \"event_type\": \"AGENT_ROUTE_AUTHORIZATION\", \"mode\": \"enforce\", \"parameter_summary\": {\"bytes\": 39, \"keys\": [\"target_agent\"], \"sha256\": \"3efba1b70c8b8e1d1af53e7a8f53c4cb00ccceecc9d193c0047a51d43ea05afd\"}, \"permit_id\": \"a096ca92-121d-44c2-867c-1aa4b145dea9\", \"physical_pep_id\": \"physical_pep.agent_route_enforce_closed_boundary_agent_agent\", \"placement_id\": \"pep.native.route_user_proxy_agent_front_office_router\", \"policy_version\": \"a9f375f41a28ee0c\", \"reason\": \"VALID_PERMIT_LEASE\", \"sequence\": 4, \"source\": \"PDP\", \"target_runtime_id\": \"front_office_router\", \"timestamp\": \"2026-08-26T02:47:00.730859+00:00\", \"trace_id\": \"trace-native-13d68391-abe4-496c-886a-52c97de8914c\", \"workflow_id\": \"\", \"workflow_instance_id\": \"workflow-native-b96a3e69-5bba-41c5-995e-22627ff5d910\", \"would_block\": false}",
+        "precondition": false
+      },
+      {
+        "description": "real search_faqs tool call was authorized",
+        "passed": true,
+        "detail": "{\"allowed\": true, \"authorization_latency_ms\": 9.3592, \"caller_runtime_id\": \"knowledge_base_agent\", \"decision\": \"ALLOW_WITH_OBLIGATIONS\", \"event_type\": \"TOOL_AUTHORIZATION\", \"mode\": \"enforce\", \"parameter_summary\": {\"bytes\": 40, \"keys\": [\"query\"], \"sha256\": \"d816db8f8b9492e9fde6ca7f51e003003594cbe4cedc0de187915c25037495b5\"}, \"permit_id\": \"40592232-f808-4365-a8ca-88efcb61fa33\", \"physical_pep_id\": \"physical_pep.tool_enforce_open_for_noncritical_python_function\", \"placement_id\": \"pep.scanner.scan_edge_017_knowledge_base_agent_search_faqs\", \"policy_version\": \"a9f375f41a28ee0c\", \"reason\": \"VALID_PERMIT_LEASE\", \"sequence\": 16, \"source\": \"PDP\", \"target_runtime_id\": \"search_faqs\", \"timestamp\": \"2026-08-26T02:47:02.744080+00:00\", \"trace_id\": \"trace-native-13d68391-abe4-496c-886a-52c97de8914c\", \"workflow_id\": \"workflow.front_office.customer_transaction\", \"workflow_instance_id\": \"workflow-native-b96a3e69-5bba-41c5-995e-22627ff5d910\", \"would_block\": false}",
+        "precondition": false
+      },
+      {
+        "description": "final JSON output passed the output boundary",
+        "passed": true,
+        "detail": "",
+        "precondition": false
+      },
+      {
+        "description": "no unexpected denials anywhere on this authorized path",
+        "passed": true,
+        "detail": "",
+        "precondition": false
+      }
+    ],
+    "audit_event_count": 36
+  }
+]
