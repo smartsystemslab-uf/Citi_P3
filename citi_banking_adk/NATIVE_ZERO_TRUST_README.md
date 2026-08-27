@@ -149,7 +149,23 @@ python verify_native_zero_trust_e2e.py --skip-critical-writes            # skip 
 
 See Part 3 for what each scenario actually proves and why it's built this way.
 
-### 1.7 Reading the audit trail directly
+### 1.7 Measuring latency
+
+```powershell
+python latency_benchmark.py
+```
+
+Runs the same kind of real live scenarios and reports bootstrap latency
+(the one-time Task 1-5 pipeline cost), per-boundary authorization latency
+(real PDP decision + Permit Lease issuance, from the audit trail's own
+timing), end-to-end wall-clock latency, and what fraction of the total is
+Zero Trust overhead versus real LLM/agent time. See
+[`LATENCY_BENCHMARK_RESULTS.md`](LATENCY_BENCHMARK_RESULTS.md) for a
+recorded snapshot (headline finding: authorization overhead is ~1.25% of
+end-to-end wall clock; bootstrap alone costs ~1.7s warm / ~4.2s cold, paid
+once per CLI invocation).
+
+### 1.8 Reading the audit trail directly
 
 Every authorization decision — allowed or denied — is appended as one JSON
 line to:

@@ -1,0 +1,54 @@
+{
+  "bootstrap_warm_ms": 1750.5,
+  "bootstrap_cold_ms": 4238.0,
+  "authorization_latency_by_boundary_ms": {
+    "AGENT_ROUTE_AUTHORIZATION": {
+      "count": 6,
+      "min_ms": 8.594,
+      "mean_ms": 9.337,
+      "median_ms": 9.418,
+      "p95_ms": 9.963,
+      "max_ms": 9.997
+    },
+    "INPUT_AUTHORIZATION": {
+      "count": 1,
+      "min_ms": 10.035,
+      "mean_ms": 10.035,
+      "median_ms": 10.035,
+      "p95_ms": 10.035,
+      "max_ms": 10.035
+    },
+    "OUTPUT_AUTHORIZATION": {
+      "count": 1,
+      "min_ms": 9.766,
+      "mean_ms": 9.766,
+      "median_ms": 9.766,
+      "p95_ms": 9.766,
+      "max_ms": 9.766
+    },
+    "TOOL_AUTHORIZATION": {
+      "count": 2,
+      "min_ms": 9.719,
+      "mean_ms": 10.094,
+      "median_ms": 10.094,
+      "p95_ms": 10.432,
+      "max_ms": 10.47
+    }
+  },
+  "wall_clock_by_scenario_ms": {
+    "front_office_faq": {
+      "count": 1,
+      "min_ms": 7267.034,
+      "mean_ms": 7267.034,
+      "median_ms": 7267.034,
+      "p95_ms": 7267.034,
+      "max_ms": 7267.034
+    }
+  },
+  "aggregate": {
+    "runs": 1,
+    "total_wall_ms": 7267.0,
+    "total_zero_trust_ms": 96.0,
+    "zero_trust_pct_of_wall_clock": 1.321
+  }
+}

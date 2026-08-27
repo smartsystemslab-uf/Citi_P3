@@ -280,7 +280,28 @@ in this case; the test harness's failure mode was.
 
 ---
 
-## 10. Files touched vs. not touched, at a glance
+## 11. New: `latency_benchmark.py` + `LATENCY_BENCHMARK_RESULTS.md`
+
+Requested separately: a script to measure real latency of the key
+processes when running the native integration against the real MAS (Work
+Plan Task 7's PEP/PDP latency, end-to-end latency, and Backplane-overhead
+metrics). Adds no instrumentation to enforcement code — it runs real live
+scenarios and aggregates the `authorization_latency_ms` every
+`INPUT_AUTHORIZATION` / `AGENT_ROUTE_AUTHORIZATION` / `TOOL_AUTHORIZATION` /
+`OUTPUT_AUTHORIZATION` audit event already records, plus times
+`NativeMasBackplane` construction directly (no LLM call needed) to isolate
+the one-time Task 1-5 bootstrap cost.
+
+Headline results from the recorded run (see
+`LATENCY_BENCHMARK_RESULTS.md` for full tables): bootstrap costs ~1.7s warm
+/ ~4.2s cold (full Task 2 rescan), paid once per `run_cli.py` invocation;
+every authorization boundary costs ~8-11ms regardless of type; and across
+12 real runs, Zero Trust decision time was **1.25% of total wall-clock
+latency** — the rest is real LLM/agent time.
+
+---
+
+## 12. Files touched vs. not touched, at a glance
 
 | File | Status |
 |---|---|
@@ -290,6 +311,8 @@ in this case; the test harness's failure mode was.
 | `tests_native_zt/test_native_zero_trust_plugin.py` | Pre-existing, **test added** (§4) |
 | `verify_native_zero_trust_e2e.py` | **New** (§5), **fixed post-commit** (§9) |
 | `NATIVE_ZERO_TRUST_README.md` | **New** (§6) |
+| `latency_benchmark.py` | **New** (§11) |
+| `LATENCY_BENCHMARK_RESULTS.md` | **New** (§11) |
 | `bank_adk/app.py` | Pre-existing, not touched |
 | `bank_adk/runner.py` | Pre-existing, not touched |
 | `bank_adk/zero_trust/config.py`, `__init__.py` | Pre-existing, not touched |
