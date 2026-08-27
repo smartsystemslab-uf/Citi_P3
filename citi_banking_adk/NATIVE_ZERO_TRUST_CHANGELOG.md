@@ -9,6 +9,11 @@ already here, and which parts were added or changed during that session.*
 Both commits below (`44203899`, `24043fd1`) were made by the repo owner
 after the session ended — nothing here was committed automatically.
 
+**Update:** after those commits, the owner ran `verify_native_zero_trust_e2e.py`
+independently and hit a real `FAIL` on `mid_office_representative_assist`
+that this document didn't yet account for. See §9 below — found, fixed, and
+re-verified, in the harness itself, not in the Zero Trust enforcement logic.
+
 ---
 
 ## 0. Baseline: what already existed before this session touched anything
@@ -232,7 +237,50 @@ fail-closed layers.
 
 ---
 
-## 8. Files touched vs. not touched, at a glance
+## 9. Fixed, post-commit: a flaky check in `verify_native_zero_trust_e2e.py` itself
+
+**Found by:** the repo owner running `verify_native_zero_trust_e2e.py`
+independently after §5/§6 were committed. Result: `OVERALL: FAIL`, with
+`mid_office_representative_assist` failing on `real
+get_customer_financial_profile tool call was authorized ... tool not called
+or not found in audit trail`. Every other scenario (including the previously
+flaky `unauthorized_transfer_blocked`) passed.
+
+**This was a harness bug, not a Zero Trust bug.** `mid_office_router`
+independently chooses between two workflows
+(`mid_office_planning_workflow` vs. `representative_assistant_workflow`);
+that choice is made by the real LLM and is not deterministic — the same
+non-determinism already handled for three other scenarios (§5's design), but
+this scenario's `_verify_mid_office()` never marked its checks as
+`precondition=True`, so a run where the LLM picked the planning workflow
+instead just failed outright instead of retrying. Confirmed no unexpected
+denials occurred in that run (`no unexpected denials anywhere on this
+authorized path` passed) — nothing was incorrectly blocked.
+
+**Fix, in `_verify_mid_office()`:**
+1. Added a precondition check for `mid_office_router ->
+   representative_assistant_workflow` (the actual branching point), split
+   from a separate, non-precondition check for whether that handoff was
+   *authorized* -- so a route that really happened but was wrongly denied
+   still fails immediately, only a route that never happened retries.
+2. Changed the `get_customer_financial_profile` check from one combined
+   "called and authorized" check into the same two-part pattern: a
+   precondition ("was it called") and a separate security check
+   ("was it authorized"), matching the pattern already used correctly in
+   `_verify_unauthorized_transfer` / `_verify_back_office_unauthorized` /
+   `_verify_back_office_authorized`.
+3. Set `max_attempts=3` on the `mid_office_representative_assist` scenario.
+
+**Re-verified:** ran the fixed scenario alone (passed clean, no retry
+needed) and the full 5-scenario suite (`OVERALL: PASS`, exit `0`, all
+scenarios including this one). This fix is in `verify_native_zero_trust_
+e2e.py` only -- no change to `bank_adk/zero_trust/plugin.py` or any other
+enforcement code was needed, because the enforcement itself was never wrong
+in this case; the test harness's failure mode was.
+
+---
+
+## 10. Files touched vs. not touched, at a glance
 
 | File | Status |
 |---|---|
@@ -240,7 +288,7 @@ fail-closed layers.
 | `run_cli.py` | Pre-existing, **fixed** (§2) |
 | `bank_adk/agents/front_office.py` | Pre-existing, **fixed** (§3) |
 | `tests_native_zt/test_native_zero_trust_plugin.py` | Pre-existing, **test added** (§4) |
-| `verify_native_zero_trust_e2e.py` | **New** (§5) |
+| `verify_native_zero_trust_e2e.py` | **New** (§5), **fixed post-commit** (§9) |
 | `NATIVE_ZERO_TRUST_README.md` | **New** (§6) |
 | `bank_adk/app.py` | Pre-existing, not touched |
 | `bank_adk/runner.py` | Pre-existing, not touched |

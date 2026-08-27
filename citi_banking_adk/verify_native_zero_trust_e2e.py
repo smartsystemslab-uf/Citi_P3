@@ -228,12 +228,46 @@ def _verify_mid_office(events: list[dict[str, Any]]) -> list[Check]:
         detail=json.dumps(route) if route else "no AGENT_ROUTE_AUTHORIZATION event found",
     ))
 
+    # mid_office_router itself independently chooses between two workflows
+    # (planning vs. representative-assist) -- that choice, not just "did it
+    # reach mid_office_router at all", is the real precondition for this
+    # scenario. A run that gets routed to the planning workflow instead
+    # proves nothing about the representative-assist path and must retry,
+    # not fail as a security issue. Precondition checks test presence only
+    # (did this happen at all) so that a route/tool call that DID happen but
+    # was incorrectly denied is a separate, non-retried security check --
+    # conflating the two would let a genuine denial "retry away" instead of
+    # being reported.
+    workflow_route = _route(events, "mid_office_router", "representative_assistant_workflow")
+    checks.append(Check(
+        "mid_office_router chose the representative-assist workflow "
+        "(otherwise this scenario proves nothing about that path)",
+        passed=workflow_route is not None,
+        detail="" if workflow_route else "the LLM routed to a different mid-office "
+        "workflow this run (e.g. planning) instead of representative_assistant_workflow",
+        precondition=True,
+    ))
+    if workflow_route is not None:
+        checks.append(Check(
+            "mid_office_router -> representative_assistant_workflow handoff was authorized",
+            passed=workflow_route.get("allowed") is True,
+            detail=json.dumps(workflow_route),
+        ))
+
     tool = _tool(events, "get_customer_financial_profile")
     checks.append(Check(
-        "real get_customer_financial_profile tool call was authorized",
-        passed=bool(tool and tool.get("allowed") is True),
-        detail=json.dumps(tool) if tool else "tool not called or not found in audit trail",
+        "financial_data_agent actually called get_customer_financial_profile "
+        "(otherwise this scenario proves nothing)",
+        passed=tool is not None,
+        detail="" if tool else "tool not called or not found in audit trail",
+        precondition=True,
     ))
+    if tool is not None:
+        checks.append(Check(
+            "real get_customer_financial_profile tool call was authorized",
+            passed=tool.get("allowed") is True,
+            detail=json.dumps(tool),
+        ))
 
     denied = [e for e in events if e.get("allowed") is False]
     checks.append(Check(
@@ -329,6 +363,7 @@ SCENARIOS: list[Scenario] = [
         message="Internal representative here, I need the financial profile and any "
         "recommended products or loan options for customer CUST-001 so I can assist them.",
         description="Mid-office fan-out workflow (parallel sub-agents) completes end to end.",
+        max_attempts=3,
         verify=_verify_mid_office,
     ),
     Scenario(
