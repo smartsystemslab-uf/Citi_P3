@@ -1,0 +1,5 @@
+- workflow_id: wf-aml-investigation
+  name: aml_investigation_workflow
+  domain: aml_office
+  description: "End-to-end investigation and SAR generation"
+  agents_involved: [aml_office_router, aml_investigator, aml_reporter]

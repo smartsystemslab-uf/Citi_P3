@@ -31,10 +31,13 @@ python -m pip install -r citi_banking_mcp_server/requirements.txt
 Run each command from the repository root:
 
 ```bash
-python -m pytest -q citi_banking_backend/integration_tests
-python -m pytest -q citi_banking_adk/integration_tests
-python -m pytest -q citi_banking_adk_mlflow_observability/integration_tests
-python -m pytest -q citi_banking_mcp_server/integration_tests
+PYTHONPATH=citi_banking_backend python -m pytest -q citi_banking_backend/integration_tests
+
+PYTHONPATH=citi_banking_adk python -m pytest -q citi_banking_adk/integration_tests
+
+PYTHONPATH=citi_banking_adk_mlflow_observability python -m pytest -q citi_banking_adk_mlflow_observability/integration_tests
+
+PYTHONPATH=citi_banking_mcp_server python -m pytest -q citi_banking_mcp_server/integration_tests
 ```
 
 The server-based suites bind only to a temporary `127.0.0.1` port and place all

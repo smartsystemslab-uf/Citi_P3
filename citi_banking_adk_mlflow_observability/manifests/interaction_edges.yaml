@@ -1,0 +1,24 @@
+# Agent-to-Agent
+- source: aml_office_router
+  target: aml_investigator
+  edge_type: agent-to-agent
+  protocol: internal_transfer
+
+# Agent-to-Tool
+- source: aml_investigator
+  target: screen_against_sanctions
+  edge_type: agent-to-tool
+
+- source: aml_investigator
+  target: fetch_transaction_history
+  edge_type: agent-to-tool
+
+# Tool-to-API
+- source: screen_against_sanctions
+  target: ext-api-global-sanctions
+  edge_type: tool-to-api
+
+# API-to-DB
+- source: fetch_transaction_history
+  target: db-transaction-ledger
+  edge_type: api-to-db

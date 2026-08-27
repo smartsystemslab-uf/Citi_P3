@@ -1,0 +1,7 @@
+- boundary_id: b-aml-office
+  description: "Secure enclave for Anti-Money Laundering operations"
+  ingress_allowed_from: 
+    - b-external
+  egress_allowed_to:
+    - b-shared
+    - b-external-api

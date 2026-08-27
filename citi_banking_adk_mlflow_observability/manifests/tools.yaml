@@ -1,0 +1,9 @@
+- name: fetch_transaction_history
+  domain: aml_office
+  compliance_tags: [AML]
+  allowed_callers: [aml_investigator]
+
+- name: screen_against_sanctions
+  domain: aml_office
+  compliance_tags: [AML]
+  allowed_callers: [aml_investigator]

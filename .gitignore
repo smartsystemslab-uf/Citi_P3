@@ -1,0 +1,8 @@
+.env
+.venv/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+mlflow.db
+mlruns/
+bank_adk/.runtime/

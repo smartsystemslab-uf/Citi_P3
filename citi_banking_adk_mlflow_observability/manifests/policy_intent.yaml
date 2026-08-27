@@ -1,0 +1,4 @@
+- rule_id: AML_001
+  intent: "Ensure AML tools are only executed by authorized callers within the AML workflow."
+  enforcement_action: MANUAL_REVIEW
+  applies_to_tags: [AML]

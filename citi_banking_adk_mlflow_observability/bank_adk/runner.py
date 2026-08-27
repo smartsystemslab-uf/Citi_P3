@@ -2,6 +2,7 @@ import io
 import json
 from contextlib import redirect_stderr, redirect_stdout
 from typing import Any
+import os
 
 from google.adk.runners import InMemoryRunner
 
@@ -18,7 +19,10 @@ IMPORTANT_RESULT_KEYS = {
     "mid_office_planning_result",
     "mid_office_representative_result",
     "bo_report_output",
-    "bo_exception_output",
+    "bo_exception_output", 
+    "aml_investigation_summary",
+    "aml_sar_draft",
+    "aml_office_router_result",
 }
 
 TOOL_RESULT_WHITELIST = {
@@ -122,7 +126,14 @@ async def run_message(
     compact: bool = True,
     *,
     scenario_name: str | None = None,
+    zero_trust: bool = False,
+    zt_refresh: bool = False,
 ):
+    if zero_trust:
+        os.environ["ZERO_TRUST_ENABLED"] = "true"
+    if zt_refresh:
+        os.environ["ZT_REFRESH"] = "true"
+        
     runner = InMemoryRunner(app=app)
 
     buf_out = io.StringIO()

@@ -1,0 +1,17 @@
+- name: aml_office_router
+  domain: aml_office
+  role: router
+  risk_tier: medium
+  pep_type: policy_enforcement_point
+
+- name: aml_investigator
+  domain: aml_office
+  role: specialist
+  risk_tier: high
+  pep_type: policy_decision_point
+
+- name: aml_reporter
+  domain: aml_office
+  role: specialist
+  risk_tier: high
+  pep_type: policy_decision_point
