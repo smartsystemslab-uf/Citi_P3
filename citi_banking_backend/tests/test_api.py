@@ -1,4 +1,5 @@
 from datetime import date
+from http import client
 from uuid import uuid4
 
 
@@ -207,6 +208,7 @@ def test_aml_verify_identity_endpoint(client):
         },
     )
 
+
     assert exact.status_code == 200
 
     body = exact.json()
@@ -218,6 +220,10 @@ def test_aml_verify_identity_endpoint(client):
         "dob": 1.0,
         "id_number": 1.0,
     }
+
+    stored = client.get("/customers/CUST-001")
+    assert stored.status_code == 200
+    assert stored.json()["identity_match_confidence"] == 1.0
 
     mismatch = client.post(
         "/aml/verify-identity",
@@ -231,6 +237,16 @@ def test_aml_verify_identity_endpoint(client):
 
     assert mismatch.status_code == 200
     assert mismatch.json()["match_confidence"] < 0.5
+
+    mismatch_score = mismatch.json()["match_confidence"]
+
+    stored_after_mismatch = client.get("/customers/CUST-001")
+
+    assert stored_after_mismatch.status_code == 200
+    assert (
+        stored_after_mismatch.json()["identity_match_confidence"]
+        == mismatch_score
+    )
 
     missing = client.post(
         "/aml/verify-identity",

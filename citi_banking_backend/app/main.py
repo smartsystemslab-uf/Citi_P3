@@ -398,6 +398,10 @@ def verify_identity(
         reference_id_number=customer.id_number,
     )
 
+    customer.identity_match_confidence = result["match_confidence"]
+    db.commit()
+    db.refresh(customer)
+
     return {
         "customer_id": customer.customer_id,
         **result,
