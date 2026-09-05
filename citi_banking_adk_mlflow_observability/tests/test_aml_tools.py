@@ -187,3 +187,28 @@ class VerifyIdentityDocumentTests(unittest.TestCase):
         self.assertIn(aml_tools.verify_identity_document, aml_tools.AML_TOOLS)
         self.assertIn(aml_tools.fetch_transaction_history, aml_tools.AML_TOOLS)
         self.assertIn(aml_tools.screen_against_sanctions, aml_tools.AML_TOOLS)
+
+    def test_mismatched_name_returns_lower_confidence(self):
+        result = aml_tools.verify_identity_document(
+            submitted_name="Completely Different Person",
+            submitted_dob="2000-02-29",
+            submitted_id_number="FL-001234",
+            reference_name="Ava Patel",
+            reference_dob="2000-02-29",
+            reference_id_number="FL-001234",
+        )
+
+        self.assertLess(result["match_confidence"], 0.8)
+
+
+    def test_mismatched_dob_returns_lower_confidence(self):
+        result = aml_tools.verify_identity_document(
+            submitted_name="Ava Patel",
+            submitted_dob="1990-01-01",
+            submitted_id_number="FL-001234",
+            reference_name="Ava Patel",
+            reference_dob="2000-02-29",
+            reference_id_number="FL-001234",
+        )
+
+        self.assertLess(result["match_confidence"], 0.8)
