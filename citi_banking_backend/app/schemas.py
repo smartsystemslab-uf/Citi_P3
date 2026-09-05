@@ -111,3 +111,9 @@ class StaffingAdjustmentRequest(BaseModel):
 class LedgerCorrectionRequest(BaseModel):
     correction_amount: float
     note: str = Field(min_length=1)
+
+class IdentityVerificationRequest(BaseModel):
+    customer_id: str
+    submitted_name: str
+    submitted_dob: str
+    submitted_id_number: str

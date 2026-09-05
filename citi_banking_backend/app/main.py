@@ -11,10 +11,11 @@ from .schemas import (
     AccountCreate, AccountOut, CustomerCreate, CustomerOut, PolicyCreate, PolicyOut,
     RuleCreate, RuleOut, RiskDecision, TransactionEvaluateRequest, TransactionOut,
     LedgerCorrectionRequest, StaffingAdjustmentRequest, TransferRequest,
-    TransactionStatusUpdate,
+    TransactionStatusUpdate, IdentityVerificationRequest,
 )
 from .banking_logic import evaluate_transaction, execute_transfer
 from .seed import init_db
+from .aml_logic import score_identity
 
 app = FastAPI(
     title="Citi P3 Banking API",
@@ -364,3 +365,40 @@ def resolve_ledger_entry(
     db.add(AuditLog(event_type="ledger_correction", actor="back_office", payload=json.dumps(correction)))
     db.commit()
     return correction
+
+@app.post("/aml/verify-identity")
+def verify_identity(
+    payload: IdentityVerificationRequest,
+    db: Session = Depends(get_db),
+):
+    customer = db.scalar(
+        select(Customer).where(
+            Customer.customer_id == payload.customer_id
+        )
+    )
+
+    if not customer:
+        raise HTTPException(
+            status_code=404,
+            detail="customer not found",
+        )
+
+    if customer.date_of_birth is None or not customer.id_number:
+        raise HTTPException(
+            status_code=400,
+            detail="customer identity reference data is incomplete",
+        )
+
+    result = score_identity(
+        submitted_name=payload.submitted_name,
+        submitted_dob=payload.submitted_dob,
+        submitted_id_number=payload.submitted_id_number,
+        reference_name=customer.full_name,
+        reference_dob=customer.date_of_birth.isoformat(),
+        reference_id_number=customer.id_number,
+    )
+
+    return {
+        "customer_id": customer.customer_id,
+        **result,
+    }

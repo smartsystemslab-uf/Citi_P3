@@ -195,3 +195,51 @@ def test_mid_and_back_office_mcp_contract_endpoints(client):
         "/back-office/resolve/missing",
         json={"correction_amount": 4.25, "note": "unit correction"},
     ).status_code == 404
+
+def test_aml_verify_identity_endpoint(client):
+    exact = client.post(
+        "/aml/verify-identity",
+        json={
+            "customer_id": "CUST-001",
+            "submitted_name": "Ava Patel",
+            "submitted_dob": "2000-02-29",
+            "submitted_id_number": "FL-001234",
+        },
+    )
+
+    assert exact.status_code == 200
+
+    body = exact.json()
+
+    assert body["customer_id"] == "CUST-001"
+    assert body["match_confidence"] == 1.0
+    assert body["field_scores"] == {
+        "name": 1.0,
+        "dob": 1.0,
+        "id_number": 1.0,
+    }
+
+    mismatch = client.post(
+        "/aml/verify-identity",
+        json={
+            "customer_id": "CUST-001",
+            "submitted_name": "Wrong Person",
+            "submitted_dob": "1999-01-01",
+            "submitted_id_number": "WRONG-ID",
+        },
+    )
+
+    assert mismatch.status_code == 200
+    assert mismatch.json()["match_confidence"] < 0.5
+
+    missing = client.post(
+        "/aml/verify-identity",
+        json={
+            "customer_id": "DOES-NOT-EXIST",
+            "submitted_name": "Ava Patel",
+            "submitted_dob": "2000-02-29",
+            "submitted_id_number": "FL-001234",
+        },
+    )
+
+    assert missing.status_code == 404
