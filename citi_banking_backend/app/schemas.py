@@ -111,3 +111,27 @@ class StaffingAdjustmentRequest(BaseModel):
 class LedgerCorrectionRequest(BaseModel):
     correction_amount: float
     note: str = Field(min_length=1)
+
+class SARDraftCreate(BaseModel):
+    case_id: str
+    original_draft: str = Field(min_length=1)
+
+
+class SARDraftReviewRequest(BaseModel):
+    edited_draft: str = Field(min_length=1)
+    reviewer: str = Field(min_length=1)
+    approved: bool = True
+
+
+class SARDraftOut(BaseModel):
+    draft_id: str
+    case_id: str
+    original_draft: str
+    edited_draft: str | None
+    reviewer: str | None
+    approved: bool
+    created_at: datetime
+    reviewed_at: datetime | None
+
+    class Config:
+        from_attributes = True
