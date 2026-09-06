@@ -15,21 +15,21 @@ def build_aml_office_router() -> LlmAgent:
         tools=[fetch_transaction_history, screen_against_sanctions], 
         output_key="aml_investigation_summary"
     )
-    
-    aml_reporter = LlmAgent(
+        
+    sar_drafting_agent = LlmAgent(
         after_model_callback=sanitize_tool_call_names,
-        name="aml_reporter", 
-        model=build_model(), 
-        description="Drafts a Suspicious Activity Report (SAR) based on investigation findings.",
-        instruction="You are an AML Reporter. Read the investigation summary from {aml_investigation_summary}. If suspicious activity is confirmed, draft a SAR. Return a compact JSON string with keys sar_required, sar_draft, and next_steps.", 
-        tools=[], 
+        name="sar_drafting_agent",
+        model=build_model(),
+        description="Drafts a Suspicious Activity Report (SAR) based on AML investigation findings.",
+        instruction="You are a SAR drafting agent. Read the investigation summary from {aml_investigation_summary}. If suspicious activity is confirmed, draft a SAR. Return a compact JSON string with keys sar_required, sar_draft, and next_steps.",
+        tools=[],
         output_key="aml_sar_draft"
     )
 
     aml_workflow_agent = AmlInvestigationWorkflowAgent(
         name="aml_investigation_workflow",
         investigator_agent=aml_investigator,
-        reporter_agent=aml_reporter,
+        reporter_agent=sar_drafting_agent,
     )
     
     return LlmAgent(
