@@ -6,6 +6,8 @@ from google.adk.agents import BaseAgent, LlmAgent, ParallelAgent, SequentialAgen
 from google.adk.agents.invocation_context import InvocationContext
 from google.adk.events import Event
 
+from ..sar_prompt import format_sar_case_facts
+
 
 def _state_get(ctx: InvocationContext, key: str) -> Any:
     return ctx.session.state.get(key)
@@ -293,6 +295,12 @@ class AmlInvestigationWorkflowAgent(BaseAgent):
             
         # Step 2: Extract investigator output from session state
         investigation = _extract_json(_state_get(ctx, "aml_investigation_summary"))
+        
+        case_facts = investigation.get("case_facts", {})
+
+        ctx.session.state["aml_sar_case_facts"] = format_sar_case_facts(
+            case_facts
+        )
         
         # Step 3: Conditionally run the reporter agent based on findings
         risk_score = investigation.get("risk_score", 0)
