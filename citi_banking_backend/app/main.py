@@ -4,8 +4,8 @@ from datetime import date, datetime, time, timedelta
 
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
-from fastapi import Depends, FastAPI, HTTPException, Query
-from .database import get_db
+from fastapi import Depends, FastAPI, HTTPException, Query, APIRouter, Depends
+from .database import get_db, refresh_customer_baselines
 from .models import Account, AuditLog, Customer, Policy, Rule, Transaction
 from .schemas import (
     AccountCreate, AccountOut, CustomerCreate, CustomerOut, PolicyCreate, PolicyOut,
@@ -364,3 +364,8 @@ def resolve_ledger_entry(
     db.add(AuditLog(event_type="ledger_correction", actor="back_office", payload=json.dumps(correction)))
     db.commit()
     return correction
+
+@app.post("/aml/refresh-baselines")
+def trigger_baseline_refresh(db: Session = Depends(get_db)):
+    updated_profiles = refresh_customer_baselines(db)
+    return {"status": "success", "profiles_refreshed": updated_profiles}

@@ -14,8 +14,9 @@ def find_shared_attribute_accounts(account_id: str) -> dict:
     Looks up accounts that share a device_id or ip_address with the target account.
     Returns an adjacency list mapping the shared attribute to the linked accounts.
     """
-    # NOTE: You will need to wire this to hit your backend API client
+    # NOTE: Need to wire this to hit your backend API client
     # e.g., return api_client.get(f"/aml/shared-attributes/{account_id}")
+    pass
   
 def detect_mule_rings(transactions: list[dict], max_depth: int = 5) -> list[list[str]]:
     """
@@ -58,4 +59,30 @@ def run_aml_detection_pipeline(transactions: list[dict]):
     
     return f"Pipeline complete. Fed {len(mule_rings)} mule rings and {len(device_hotspots)} device hotspots to aml_alerts."
 
-AML_TOOLS = [fetch_transaction_history, screen_against_sanctions, find_shared_attribute_accounts, detect_mule_rings, run_aml_detection_pipeline]
+def check_threshold_anomaly(account_id: str, transaction_id: str, amount: float) -> dict:
+    """
+    Evaluates if a transaction deviates sharply (>5x peak) from the customer's baseline.
+    Routes above-threshold results into aml_alerts.
+    """
+    # 1. Fetch baseline from backend
+    # profile_response = api_client.get(f"/aml/profiles/{account_id}")
+    # Mocking the response structure for the ADK environment:
+    profile = {"peak_transfer_amount": 1000.0} # Replace with actual API data extraction
+    
+    threshold = profile["peak_transfer_amount"] * 5
+    is_anomalous = amount > threshold
+    
+    if is_anomalous:
+        # 2. Fire alert to backend
+        alert_payload = {
+            "alert_type": "baseline_deviation",
+            "entity_id": transaction_id,
+            "description": f"Amount {amount} exceeds 5x historical peak of {profile['peak_transfer_amount']}",
+            "status": "review"
+        }
+        # api_client.post("/aml/alerts/feed", json=alert_payload)
+        return {"flagged": True, "reason": "Exceeded 5x peak transfer amount", "status": "review"}
+        
+    return {"flagged": False, "reason": "Within normal bounds"}
+
+AML_TOOLS = [fetch_transaction_history, screen_against_sanctions, find_shared_attribute_accounts, detect_mule_rings, run_aml_detection_pipeline, check_threshold_anomaly]

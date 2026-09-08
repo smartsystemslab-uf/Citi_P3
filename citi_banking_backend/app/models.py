@@ -75,8 +75,9 @@ class Transaction(Base):
     risk_score: Mapped[int] = mapped_column(Integer, default=0)
     decision_reason: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    device_id = Column(String, index=True, nullable=True)
-    ip_address = Column(String, index=True, nullable=True)
+    device_id: Mapped[str] = mapped_column(String(64), index=True, nullable=True)
+    ip_address: Mapped[str] = mapped_column(String(64), index=True, nullable=True)
+    mcc : Mapped[str] = mapped_column(String(4), index=True, nullable=True)  # Merchant Category Code
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
@@ -96,3 +97,13 @@ class AMLAlert(Base):
     description: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     status: Mapped[str] = mapped_column(String(32), default="open")
+
+class CustomerRiskProfile(Base):
+    __tablename__ = "customer_risk_profile"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    account_id: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
+    avg_weekly_volume: Mapped[float] = mapped_column(Float, default=0.0)
+    peak_transfer_amount: Mapped[float] = mapped_column(Float, default=0.0)
+    top_mccs: Mapped[str] = mapped_column(Text, default="[]") # Stored as JSON string
+    last_updated: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

@@ -98,6 +98,54 @@ def feed_aml_alerts(db: Session, mule_rings: list[list[str]], device_hotspots: l
         
     return len(new_alerts)
 
+
+def refresh_customer_baselines(db: Session):
+    from .models import Transaction, CustomerRiskProfile
+    from collections import defaultdict
+    import json
+
+    transactions = db.query(Transaction).all()
+    
+    # Process account histories
+    account_data = defaultdict(lambda: {"total_vol": 0, "peak": 0, "mccs": defaultdict(int), "first_tx": None, "last_tx": None})
+    
+    for tx in transactions:
+        data = account_data[tx.from_account_id]
+        data["total_vol"] += tx.amount
+        if tx.amount > data["peak"]:
+            data["peak"] = tx.amount
+        if getattr(tx, 'mcc', None):
+            data["mccs"][tx.mcc] += 1
+            
+        if not data["first_tx"] or tx.created_at < data["first_tx"]:
+            data["first_tx"] = tx.created_at
+        if not data["last_tx"] or tx.created_at > data["last_tx"]:
+            data["last_tx"] = tx.created_at
+
+    updated_count = 0
+    for acc_id, data in account_data.items():
+        # Calculate weekly average
+        days_active = (data["last_tx"] - data["first_tx"]).days if data["last_tx"] and data["first_tx"] else 0
+        weeks = max(1, days_active / 7.0)
+        avg_weekly = data["total_vol"] / weeks
+        
+        # Determine top 3 MCCs
+        sorted_mccs = sorted(data["mccs"].items(), key=lambda x: x[1], reverse=True)
+        top_3 = [m[0] for m in sorted_mccs[:3]]
+
+        # Upsert logic (Idempotency)
+        profile = db.query(CustomerRiskProfile).filter(CustomerRiskProfile.account_id == acc_id).first()
+        if not profile:
+            profile = CustomerRiskProfile(account_id=acc_id)
+            db.add(profile)
+            
+        profile.avg_weekly_volume = avg_weekly
+        profile.peak_transfer_amount = data["peak"]
+        profile.top_mccs = json.dumps(top_3)
+        updated_count += 1
+        
+    db.commit()
+    return updated_count
 class Base(DeclarativeBase):
     pass
 

@@ -2,10 +2,10 @@ import json
 import re
 from typing import Any, AsyncGenerator, Optional
 
-from google.adk.agents import BaseAgent, LlmAgent, ParallelAgent, SequentialAgent
+from google.adk.agents import Agent, BaseAgent, LlmAgent, ParallelAgent, SequentialAgent
 from google.adk.agents.invocation_context import InvocationContext
 from google.adk.events import Event
-
+from citi_banking_adk_mlflow_observability.bank_adk.tools.aml_tools import check_threshold_anomaly
 
 def _state_get(ctx: InvocationContext, key: str) -> Any:
     return ctx.session.state.get(key)
@@ -264,6 +264,14 @@ class AmlInvestigationWorkflowAgent(BaseAgent):
     investigator_agent: LlmAgent
     reporter_agent: LlmAgent
 
+    aml_investigation_workflow = Agent(
+    name="aml_investigator",
+    description="Specialist step: Reviews baseline profiles and checks for threshold anomalies.",
+    tools=[
+        # ... your other tools (e.g., fetch_transaction_history) ...,
+        check_threshold_anomaly
+    ]
+)
     model_config = {"arbitrary_types_allowed": True}
 
     def __init__(
