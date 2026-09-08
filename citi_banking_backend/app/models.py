@@ -1,5 +1,5 @@
 from datetime import datetime, date
-from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, Column
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .database import Base
 
@@ -75,6 +75,8 @@ class Transaction(Base):
     risk_score: Mapped[int] = mapped_column(Integer, default=0)
     decision_reason: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    device_id = Column(String, index=True, nullable=True)
+    ip_address = Column(String, index=True, nullable=True)
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
@@ -84,3 +86,13 @@ class AuditLog(Base):
     actor: Mapped[str] = mapped_column(String(64), default="system")
     payload: Mapped[str] = mapped_column(Text, default="{}")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+class AMLAlert(Base):
+    __tablename__ = "aml_alerts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    alert_type: Mapped[str] = mapped_column(String(64), index=True, nullable=False) # e.g., 'mule_ring', 'device_sharing'
+    entity_id: Mapped[str] = mapped_column(String(128), index=True) # The flagged device_id or account_id
+    description: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    status: Mapped[str] = mapped_column(String(32), default="open")
