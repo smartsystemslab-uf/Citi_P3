@@ -4,6 +4,7 @@ from ..infra.repository import repo
 from ..settings import settings
 from ..infra.api_client import BankingApiError, api_client, json_dumps
 from datetime import datetime
+from typing import Any
 
 
 def get_customer_context(customer_id: str) -> str:
@@ -71,79 +72,63 @@ def execute_transfer(source_account: str, destination_account: str, amount: floa
             return json_dumps({"status": "backend_error", "error": str(exc)})
     return json.dumps(repo.execute_transfer(source_account, destination_account, amount, memo, customer_id or None), indent=2)
 
-def detect_structuring( customer_id: str, window_days: int = 7, threshold_amount: float = 10000.0) -> str:
-    """Analyzes customer deposit transactions over a sliding time window to identify
-    structuring patterns. Persists results to aml_alerts if a threshold is breached."""
-
-
-    raw_txns = repo.get_customer_transactions(customer_id)
-    if not raw_txns:
+def detect_structuring(
+    customer_id: str,
+    window_days: int = 7,
+    threshold_amount: float = 10000.0,
+    auto_trigger_review: bool = True
+) -> str:
+    """
+    Evaluates deposit patterns over a sliding time window.
+    On detection, persists an entry in aml_alerts and opens a manual_review case.
+    """
+    # 1. Execute sliding window check
+    detection_result = _evaluate_sliding_window(customer_id, window_days, threshold_amount)
+    
+    if not detection_result["structuring_detected"]:
         return json.dumps({
             "customer_id": customer_id,
             "structuring_detected": False,
-            "reason": "No transactions found"
+            "threshold": threshold_amount,
+            "window_days": window_days
         }, indent=2)
 
-    deposits = []
-    for txn in raw_txns:
-        dt = datetime.fromisoformat(txn["created_at"])
-        deposits.append({
-            "transaction_id": txn["transaction_id"],
-            "amount": float(txn["amount"]),
-            "timestamp": dt,
-            "created_at": txn["created_at"]
+    peak_hit = detection_result["peak_hit"]
+
+    # 2. Persist machine alert record in aml_alerts
+    alert_res = repo.create_aml_alert(
+        customer_id=customer_id,
+        alert_type="structuring",
+        detection_window_params=f"{window_days}d",
+        cumulative_total=peak_hit["cumulative_total"],
+        threshold=threshold_amount,
+        raw_payload=json.dumps(detection_result["hits"])
+    )
+    alert_id = alert_res["alert_id"]
+
+    # 3. Create human manual review case using existing tool wrapper
+    case_id = None
+    if auto_trigger_review:
+        review_payload = json.dumps({
+            "alert_id": alert_id,
+            "customer_id": customer_id,
+            "detection_type": "structuring",
+            "cumulative_total": peak_hit["cumulative_total"],
+            "threshold": threshold_amount,
+            "contributing_transactions": peak_hit["contributing_transactions"]
         })
+        review_res = json.loads(submit_manual_review("structuring", review_payload))
+        case_id = review_res["case_id"]
 
-        window_delta = timedelta(days=window_days)
-    detected_hits = []
-
-    for i, end_txn in enumerate(deposits):
-        window_start = end_txn["timestamp"] - window_delta
-        contributing = [
-            t for t in deposits[:i + 1]
-            if t["timestamp"] >= window_start
-        ]
-        total_amount = sum(t["amount"] for t in contributing)
-
-        if total_amount >= threshold_amount:
-            detected_hits.append({
-                "window_end_txn": end_txn["transaction_id"],
-                "cumulative_total": total_amount,
-                "contributing_transactions": [
-                    {
-                        "transaction_id": t["transaction_id"],
-                        "amount": t["amount"],
-                        "created_at": t["created_at"]
-                    }
-                    for t in contributing
-                ]
-            })
-
-    structuring_detected = len(detected_hits) > 0
-    alert_id = None
-
-    if structuring_detected:
-        peak_hit = max(detected_hits, key=lambda x: x["cumulative_total"])
-        payload = {
-            "window_days": window_days,
-            "hits_count": len(detected_hits),
-            "peak_window": peak_hit
-        }
-        alert_res = repo.create_aml_alert(
-            customer_id=customer_id,
-            alert_type="structuring",
-            detection_window_params=f"{window_days}d",
-            cumulative_total=peak_hit["cumulative_total"],
-            threshold=threshold_amount,
-            raw_payload=json.dumps(payload)
-        )
-        alert_id = alert_res["alert_id"]
-
+    # 4. Return operational result containing forensic and workflow pointers
     return json.dumps({
         "customer_id": customer_id,
-        "structuring_detected": structuring_detected,
+        "structuring_detected": True,
+        "alert_id": alert_id,
+        "manual_review_case_id": case_id,
         "threshold": threshold_amount,
         "window_days": window_days,
-        "alert_id": alert_id,
-        "hits": detected_hits
+        "peak_cumulative_total": peak_hit["cumulative_total"],
+        "hits": detection_result["hits"]
     }, indent=2)
+

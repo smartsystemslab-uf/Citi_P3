@@ -119,6 +119,9 @@ class BankingRepository:
             row["metadata_json"] = json.loads(row["metadata_json"])
         return row
 
+    def get_customer_transactions(self, customer_id: str):
+        return self._all("SELECT * FROM transactions WHERE customer_id = ? ORDER BY created_at ASC", customer_id)
+
     def list_recent_transactions(self, customer_id: str, limit: int = 5):
         return self._all("SELECT transaction_id, amount, currency, channel, txn_type, merchant_or_counterparty, status, created_at FROM transactions WHERE customer_id = ? ORDER BY created_at DESC LIMIT ?", customer_id, limit)
 
