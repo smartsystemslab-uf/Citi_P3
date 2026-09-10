@@ -3,6 +3,7 @@ import json
 from ..infra.repository import repo
 from ..settings import settings
 from ..infra.api_client import BankingApiError, api_client, json_dumps
+from datetime import datetime
 
 
 def get_customer_context(customer_id: str) -> str:
@@ -69,3 +70,80 @@ def execute_transfer(source_account: str, destination_account: str, amount: floa
         except BankingApiError as exc:
             return json_dumps({"status": "backend_error", "error": str(exc)})
     return json.dumps(repo.execute_transfer(source_account, destination_account, amount, memo, customer_id or None), indent=2)
+
+def detect_structuring( customer_id: str, window_days: int = 7, threshold_amount: float = 10000.0) -> str:
+    """Analyzes customer deposit transactions over a sliding time window to identify
+    structuring patterns. Persists results to aml_alerts if a threshold is breached."""
+
+
+    raw_txns = repo.get_customer_transactions(customer_id)
+    if not raw_txns:
+        return json.dumps({
+            "customer_id": customer_id,
+            "structuring_detected": False,
+            "reason": "No transactions found"
+        }, indent=2)
+
+    deposits = []
+    for txn in raw_txns:
+        dt = datetime.fromisoformat(txn["created_at"])
+        deposits.append({
+            "transaction_id": txn["transaction_id"],
+            "amount": float(txn["amount"]),
+            "timestamp": dt,
+            "created_at": txn["created_at"]
+        })
+
+        window_delta = timedelta(days=window_days)
+    detected_hits = []
+
+    for i, end_txn in enumerate(deposits):
+        window_start = end_txn["timestamp"] - window_delta
+        contributing = [
+            t for t in deposits[:i + 1]
+            if t["timestamp"] >= window_start
+        ]
+        total_amount = sum(t["amount"] for t in contributing)
+
+        if total_amount >= threshold_amount:
+            detected_hits.append({
+                "window_end_txn": end_txn["transaction_id"],
+                "cumulative_total": total_amount,
+                "contributing_transactions": [
+                    {
+                        "transaction_id": t["transaction_id"],
+                        "amount": t["amount"],
+                        "created_at": t["created_at"]
+                    }
+                    for t in contributing
+                ]
+            })
+
+    structuring_detected = len(detected_hits) > 0
+    alert_id = None
+
+    if structuring_detected:
+        peak_hit = max(detected_hits, key=lambda x: x["cumulative_total"])
+        payload = {
+            "window_days": window_days,
+            "hits_count": len(detected_hits),
+            "peak_window": peak_hit
+        }
+        alert_res = repo.create_aml_alert(
+            customer_id=customer_id,
+            alert_type="structuring",
+            detection_window_params=f"{window_days}d",
+            cumulative_total=peak_hit["cumulative_total"],
+            threshold=threshold_amount,
+            raw_payload=json.dumps(payload)
+        )
+        alert_id = alert_res["alert_id"]
+
+    return json.dumps({
+        "customer_id": customer_id,
+        "structuring_detected": structuring_detected,
+        "threshold": threshold_amount,
+        "window_days": window_days,
+        "alert_id": alert_id,
+        "hits": detected_hits
+    }, indent=2)
