@@ -132,3 +132,106 @@ def detect_structuring(
         "hits": detection_result["hits"]
     }, indent=2)
 
+from datetime import datetime, timedelta
+
+def _evaluate_sliding_window(customer_id: str, window_days: int, threshold_amount: float):
+    """
+    Check for structuring by summing inbound deposits in a rolling time window.
+
+    Returns:
+    {
+      "structuring_detected": bool,
+      "hits": [...],
+      "peak_hit": {...} | None
+    }
+    """
+    transactions = repo.get_customer_transactions(customer_id)
+    if not transactions:
+        return {
+            "structuring_detected": False,
+            "hits": [],
+            "peak_hit": None,
+        }
+
+    deposits = []
+    for txn in transactions:
+        try:
+            amount = float(txn.get("amount") or 0)
+        except (TypeError, ValueError):
+            continue
+
+        # Only consider positive inbound deposits
+        if amount <= 0:
+            continue
+
+        created_at = txn.get("created_at")
+        if not created_at:
+            continue
+
+        try:
+            ts = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+        except ValueError:
+            continue
+
+        deposits.append({
+            "transaction_id": txn.get("transaction_id"),
+            "amount": amount,
+            "created_at": ts,
+            "source_account": txn.get("source_account"),
+            "destination_account": txn.get("destination_account"),
+            "merchant_or_counterparty": txn.get("merchant_or_counterparty"),
+            "channel": txn.get("channel"),
+            "txn_type": txn.get("txn_type"),
+        })
+
+    # Sort oldest first for sliding-window logic
+    deposits.sort(key=lambda x: x["created_at"])
+
+    hits = []
+    peak_hit = None
+
+    window_start_index = 0
+    rolling_total = 0.0
+    rolling_items = []
+
+    for idx, txn in enumerate(deposits):
+        rolling_total += txn["amount"]
+        rolling_items.append(txn)
+
+        # Remove items older than the trailing window
+        current_time = txn["created_at"]
+        cutoff = current_time - timedelta(days=window_days)
+
+        while rolling_items and rolling_items[0]["created_at"] < cutoff:
+            rolling_total -= rolling_items[0]["amount"]
+            rolling_items.pop(0)
+
+        if rolling_total >= threshold_amount:
+            contributing = [
+                {
+                    "transaction_id": item["transaction_id"],
+                    "amount": item["amount"],
+                    "created_at": item["created_at"].isoformat(),
+                    "source_account": item["source_account"],
+                    "destination_account": item["destination_account"],
+                }
+                for item in rolling_items
+            ]
+
+            hit = {
+                "window_start": rolling_items[0]["created_at"].isoformat(),
+                "window_end": current_time.isoformat(),
+                "cumulative_total": round(rolling_total, 2),
+                "threshold": threshold_amount,
+                "contributing_transactions": contributing,
+            }
+            hits.append(hit)
+
+            if peak_hit is None or rolling_total > peak_hit["cumulative_total"]:
+                peak_hit = hit
+
+    return {
+        "structuring_detected": bool(hits),
+        "hits": hits,
+        "peak_hit": peak_hit,
+    }
