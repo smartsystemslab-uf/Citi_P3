@@ -1,4 +1,4 @@
-# File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+# File generated from our OpenAPI spec by Castiron. See CONTRIBUTING.md for details.
 
 from typing_extensions import Literal
 
@@ -14,6 +14,8 @@ class ResponseError(BaseModel):
         "server_error",
         "rate_limit_exceeded",
         "invalid_prompt",
+        "data_residency_mismatch",
+        "bio_policy",
         "vector_store_timeout",
         "invalid_image",
         "invalid_image_format",

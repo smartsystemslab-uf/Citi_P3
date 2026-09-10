@@ -1,5 +1,7 @@
 from joserfc.jwk import OctKey
 from joserfc.jwk import RSAKey
+from joserfc.jwk import ECKey
+from joserfc.jwk import OKPKey
 
 from authlib.common.urls import add_params_to_qs
 
@@ -100,7 +102,7 @@ class PrivateKeyJWT(ClientSecretJWT):
     alg = "RS256"
 
     def sign(self, auth, token_endpoint):
-        if isinstance(auth.client_secret, RSAKey):
+        if isinstance(auth.client_secret, (RSAKey, ECKey, OKPKey)):
             key = auth.client_secret
         else:
             key = RSAKey.import_key(auth.client_secret)

@@ -188,7 +188,7 @@ class LazyReferenceMapper(collections.abc.MutableMapping):
             data = io.BytesIO(self.fs.cat_file(path))
             try:
                 df = self.pd.read_parquet(data, engine=self.engine)
-                refs = {c: df[c].to_numpy() for c in df.columns}
+                refs = {c: df[c].to_numpy(copy=True) for c in df.columns}
             except OSError:
                 refs = None
             return refs
@@ -615,6 +615,9 @@ class ReferenceFileSystem(AsyncFileSystem):
     Reference dict format:
     {path0: bytes_data, path1: (target_url, offset, size)}
     https://github.com/fsspec/kerchunk/blob/main/README.md
+
+    simple_references: if True (default), no jinja interpreting is done,
+        which is the safe option.
     """
 
     protocol = "reference"
@@ -1009,13 +1012,17 @@ class ReferenceFileSystem(AsyncFileSystem):
 
     def _process_references1(self, references, template_overrides=None):
         if not self.simple_templates or self.templates:
-            import jinja2
+            import jinja2.sandbox
         self.references = {}
         self._process_templates(references.get("templates", {}))
 
         @lru_cache(1000)
         def _render_jinja(u):
-            return jinja2.Template(u).render(**self.templates)
+            return (
+                jinja2.sandbox.SandboxedEnvironment()
+                .from_string(u)
+                .render(**self.templates)
+            )
 
         for k, v in references.get("refs", {}).items():
             if isinstance(v, str):
@@ -1046,16 +1053,20 @@ class ReferenceFileSystem(AsyncFileSystem):
             tmp.update(self.template_overrides)
         for k, v in tmp.items():
             if "{{" in v:
-                import jinja2
+                import jinja2.sandbox
 
-                self.templates[k] = lambda temp=v, **kwargs: jinja2.Template(
-                    temp
-                ).render(**kwargs)
+                self.templates[k] = (
+                    lambda temp=v, **kwargs: jinja2.sandbox.SandboxedEnvironment()
+                    .from_string(temp)
+                    .render(**kwargs)
+                )
             else:
                 self.templates[k] = v
 
     def _process_gen(self, gens):
         out = {}
+        if self.simple_templates:
+            return out
         for gen in gens:
             dimension = {
                 k: (
@@ -1070,16 +1081,28 @@ class ReferenceFileSystem(AsyncFileSystem):
                 for values in itertools.product(*dimension.values())
             )
             for pr in products:
-                import jinja2
+                import jinja2.sandbox
 
-                key = jinja2.Template(gen["key"]).render(**pr, **self.templates)
-                url = jinja2.Template(gen["url"]).render(**pr, **self.templates)
+                key = (
+                    jinja2.sandbox.SandboxedEnvironment()
+                    .from_string(gen["key"])
+                    .render(**pr, **self.templates)
+                )
+                url = (
+                    jinja2.sandbox.SandboxedEnvironment()
+                    .from_string(gen["url"])
+                    .render(**pr, **self.templates)
+                )
                 if ("offset" in gen) and ("length" in gen):
                     offset = int(
-                        jinja2.Template(gen["offset"]).render(**pr, **self.templates)
+                        jinja2.sandbox.SandboxedEnvironment()
+                        .from_string(gen["offset"])
+                        .render(**pr, **self.templates)
                     )
                     length = int(
-                        jinja2.Template(gen["length"]).render(**pr, **self.templates)
+                        jinja2.sandbox.SandboxedEnvironment()
+                        .from_string(gen["length"])
+                        .render(**pr, **self.templates)
                     )
                     out[key] = [url, offset, length]
                 elif ("offset" in gen) ^ ("length" in gen):

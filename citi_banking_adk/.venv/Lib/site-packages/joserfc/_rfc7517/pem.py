@@ -1,4 +1,3 @@
-from __future__ import annotations
 from typing import Any, Literal, cast
 from abc import ABCMeta, abstractmethod
 from cryptography.x509 import load_pem_x509_certificate
@@ -135,12 +134,9 @@ class CryptographyBinding(NativeKeyBinding, metaclass=ABCMeta):
     def as_bytes(
         key: GenericKey,
         encoding: Literal["PEM", "DER"] | None = None,
-        private: bool | None = False,
+        private: bool = False,
         password: Any | None = None,
     ) -> bytes:
-        if private is None:
-            private = key.is_private
-
         if private:
             return dump_pem_key(key.private_key, encoding, private, password)
         else:

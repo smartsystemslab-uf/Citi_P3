@@ -41,6 +41,9 @@ class HTTPFileSystem(AsyncFileSystem):
     match on the result. If simple_link=True, anything of the form
     "http(s)://server.com/stuff?thing=other"; otherwise only links within
     HTML href tags will be used.
+
+    URLs are passed unfiltered to aiohttp, so all addresses are accessible. Where URLs are
+    supplied by a user, the calling application may wish to filter to prevent scanning.
     """
 
     protocol = ("http", "https")
@@ -560,7 +563,9 @@ class HTTPFileSystem(AsyncFileSystem):
 
         session = await self.set_session()
 
-        async with session.put(url, data=value, headers=headers, **kwargs) as r:
+        async with session.put(
+            self.encode_url(url), data=value, headers=headers, **kwargs
+        ) as r:
             r.raise_for_status()
 
 

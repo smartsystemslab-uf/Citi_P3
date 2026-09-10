@@ -1,4 +1,4 @@
-# File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+# File generated from our OpenAPI spec by Castiron. See CONTRIBUTING.md for details.
 
 from typing import List, Union, Optional
 from typing_extensions import Literal, Annotated, TypeAlias
@@ -29,14 +29,14 @@ class ActionSearchSource(BaseModel):
 class ActionSearch(BaseModel):
     """Action type "search" - Performs a web search query."""
 
-    query: str
-    """[DEPRECATED] The search query."""
-
     type: Literal["search"]
     """The action type."""
 
     queries: Optional[List[str]] = None
     """The search queries."""
+
+    query: Optional[str] = None
+    """The search query."""
 
     sources: Optional[List[ActionSearchSource]] = None
     """The sources used in the search."""

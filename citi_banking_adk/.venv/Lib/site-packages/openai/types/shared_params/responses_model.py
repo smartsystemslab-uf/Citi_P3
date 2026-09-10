@@ -1,4 +1,4 @@
-# File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+# File generated from our OpenAPI spec by Castiron. See CONTRIBUTING.md for details.
 
 from __future__ import annotations
 
@@ -27,5 +27,8 @@ ResponsesModel: TypeAlias = Union[
         "gpt-5-pro",
         "gpt-5-pro-2025-10-06",
         "gpt-5.1-codex-max",
+        "gpt-daybreak-blue-latest",
+        "gpt-daybreak-red-latest",
+        "gpt-5.6-cyber",
     ],
 ]

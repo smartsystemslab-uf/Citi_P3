@@ -34,11 +34,11 @@ citi_banking_adk/
 
 ## Setup
 
-```bash
+```powershell
 python -m venv .venv
-source .venv/bin/activate
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-cp .env.example .env
+Copy-Item .env.example .env
 ```
 
 Fill `.env` with your real key:

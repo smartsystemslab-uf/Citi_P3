@@ -1,4 +1,4 @@
-# File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+# File generated from our OpenAPI spec by Castiron. See CONTRIBUTING.md for details.
 
 from __future__ import annotations
 
@@ -30,14 +30,14 @@ class ActionSearchSource(TypedDict, total=False):
 class ActionSearch(TypedDict, total=False):
     """Action type "search" - Performs a web search query."""
 
-    query: Required[str]
-    """[DEPRECATED] The search query."""
-
     type: Required[Literal["search"]]
     """The action type."""
 
     queries: SequenceNotStr[str]
     """The search queries."""
+
+    query: str
+    """The search query."""
 
     sources: Iterable[ActionSearchSource]
     """The sources used in the search."""

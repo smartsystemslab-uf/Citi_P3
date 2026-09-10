@@ -106,18 +106,24 @@ class GoogleTool(FunctionTool):
           "error_details": str(ex),
       }
 
+  def _detect_error_in_response(self, response: Any) -> Optional[str]:
+    """Telemetry hook: returns an error type if the response indicates an error."""
+    if isinstance(response, dict) and response.get("status") == "ERROR":
+      return "TOOL_ERROR"
+    return None
+
   async def _run_async_with_credential(
       self,
-      credentials: Credentials,
-      tool_settings: BaseModel,
+      credentials: Optional[Credentials],
+      tool_settings: Optional[BaseModel],
       args: dict[str, Any],
       tool_context: ToolContext,
   ) -> Any:
     """Execute the tool's specific logic with valid credentials.
 
     Args:
-        credentials: Valid Google OAuth credentials
-        tool_settings: Tool settings
+        credentials: Valid Google OAuth credentials, if configured.
+        tool_settings: Tool settings, if configured.
         args: Arguments passed to the tool
         tool_context: Tool execution context
 

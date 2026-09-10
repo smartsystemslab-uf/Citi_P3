@@ -1,4 +1,4 @@
-# File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+# File generated from our OpenAPI spec by Castiron. See CONTRIBUTING.md for details.
 
 from ..._models import BaseModel
 
@@ -7,6 +7,9 @@ __all__ = ["ResponseUsage", "InputTokensDetails", "OutputTokensDetails"]
 
 class InputTokensDetails(BaseModel):
     """A detailed breakdown of the input tokens."""
+
+    cache_write_tokens: int
+    """The number of input tokens that were written to the cache."""
 
     cached_tokens: int
     """The number of tokens that were retrieved from the cache.

@@ -56,6 +56,18 @@ class MLDSA44PublicKey(metaclass=abc.ABCMeta):
         """
 
     @abc.abstractmethod
+    def verify_mu(
+        self,
+        signature: Buffer,
+        mu: Buffer,
+    ) -> None:
+        """
+        Verify the signature over a precomputed mu (message representative).
+
+        mu must be 64 bytes.
+        """
+
+    @abc.abstractmethod
     def __eq__(self, other: object) -> bool:
         """
         Checks equality.
@@ -139,6 +151,15 @@ class MLDSA44PrivateKey(metaclass=abc.ABCMeta):
         """
 
     @abc.abstractmethod
+    def sign_mu(self, mu: Buffer) -> bytes:
+        """
+        Signs a precomputed mu (message representative).
+
+        mu must be 64 bytes and already incorporates the context, so no
+        context is accepted here.
+        """
+
+    @abc.abstractmethod
     def __copy__(self) -> MLDSA44PrivateKey:
         """
         Returns a copy.
@@ -196,6 +217,18 @@ class MLDSA65PublicKey(metaclass=abc.ABCMeta):
     ) -> None:
         """
         Verify the signature.
+        """
+
+    @abc.abstractmethod
+    def verify_mu(
+        self,
+        signature: Buffer,
+        mu: Buffer,
+    ) -> None:
+        """
+        Verify the signature over a precomputed mu (message representative).
+
+        mu must be 64 bytes.
         """
 
     @abc.abstractmethod
@@ -282,6 +315,15 @@ class MLDSA65PrivateKey(metaclass=abc.ABCMeta):
         """
 
     @abc.abstractmethod
+    def sign_mu(self, mu: Buffer) -> bytes:
+        """
+        Signs a precomputed mu (message representative).
+
+        mu must be 64 bytes and already incorporates the context, so no
+        context is accepted here.
+        """
+
+    @abc.abstractmethod
     def __copy__(self) -> MLDSA65PrivateKey:
         """
         Returns a copy.
@@ -339,6 +381,18 @@ class MLDSA87PublicKey(metaclass=abc.ABCMeta):
     ) -> None:
         """
         Verify the signature.
+        """
+
+    @abc.abstractmethod
+    def verify_mu(
+        self,
+        signature: Buffer,
+        mu: Buffer,
+    ) -> None:
+        """
+        Verify the signature over a precomputed mu (message representative).
+
+        mu must be 64 bytes.
         """
 
     @abc.abstractmethod
@@ -425,6 +479,15 @@ class MLDSA87PrivateKey(metaclass=abc.ABCMeta):
         """
 
     @abc.abstractmethod
+    def sign_mu(self, mu: Buffer) -> bytes:
+        """
+        Signs a precomputed mu (message representative).
+
+        mu must be 64 bytes and already incorporates the context, so no
+        context is accepted here.
+        """
+
+    @abc.abstractmethod
     def __copy__(self) -> MLDSA87PrivateKey:
         """
         Returns a copy.
@@ -439,3 +502,4 @@ class MLDSA87PrivateKey(metaclass=abc.ABCMeta):
 
 if hasattr(rust_openssl, "mldsa"):
     MLDSA87PrivateKey.register(rust_openssl.mldsa.MLDSA87PrivateKey)
+    MLDSAMuHasher = rust_openssl.mldsa.MLDSAMuHasher
