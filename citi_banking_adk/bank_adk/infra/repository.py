@@ -54,6 +54,17 @@ class BankingRepository:
         CREATE TABLE IF NOT EXISTS reports (
             report_id TEXT PRIMARY KEY, batch_id TEXT, report_body TEXT, created_at TEXT, status TEXT
         );
+        CREATE TABLE IF NOT EXISTS aml_alerts (
+            alert_id TEXT PRIMARY KEY,
+            customer_id TEXT,
+            alert_type TEXT,
+            detection_window_params TEXT,
+            cumulative_total REAL,
+            threshold REAL,
+            status TEXT,
+            raw_payload TEXT,
+            created_at TEXT
+        );
         """
         with self.connect() as conn:
             conn.executescript(schema)
@@ -108,6 +119,9 @@ class BankingRepository:
             row["metadata_json"] = json.loads(row["metadata_json"])
         return row
 
+    def get_customer_transactions(self, customer_id: str):
+        return self._all("SELECT * FROM transactions WHERE customer_id = ? ORDER BY created_at ASC", customer_id)
+
     def list_recent_transactions(self, customer_id: str, limit: int = 5):
         return self._all("SELECT transaction_id, amount, currency, channel, txn_type, merchant_or_counterparty, status, created_at FROM transactions WHERE customer_id = ? ORDER BY created_at DESC LIMIT ?", customer_id, limit)
 
@@ -137,6 +151,22 @@ class BankingRepository:
             conn.execute("INSERT INTO manual_reviews VALUES (?, ?, ?, ?, ?)", (case_id, case_type, payload, now, "open"))
         return {"case_id":case_id,"case_type":case_type,"status":"open","created_at":now}
 
+    def create_aml_alert(self, customer_id: str, alert_type: str, detection_window_params: str, cumulative_total: float, threshold: float, raw_payload: str, status: str = "open") -> dict[str, Any]:
+        alert_id = f"ALT-{uuid.uuid4().hex[:8].upper()}"
+        now = datetime.now(timezone.utc).isoformat()
+        with self.connect() as conn:
+            conn.execute("INSERT INTO aml_alerts VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", (alert_id, customer_id, alert_type, detection_window_params, cumulative_total, threshold, status, raw_payload, now))
+        return {"alert_id":alert_id,"customer_id":customer_id,"alert_type":alert_type,"status":status,"created_at":now}
+
+    def get_aml_alert(self, alert_id: str) -> dict[str, Any] | None:
+        return self._one("SELECT * FROM aml_alerts WHERE alert_id = ?", alert_id)
+
+    def list_aml_alerts(self, customer_id: str | None = None) -> list[dict[str, Any]]:
+        if customer_id:
+            return self._all("SELECT * FROM aml_alerts WHERE customer_id = ? ORDER BY created_at DESC", customer_id)
+        else:
+            return self._all("SELECT * FROM aml_alerts ORDER BY created_at DESC")
+    
     def save_schedule(self, schedule_json: str):
         sid = f"SCH-{uuid.uuid4().hex[:8].upper()}"
         now = datetime.now(timezone.utc).isoformat()
