@@ -136,7 +136,8 @@ from datetime import datetime, timedelta
 
 def _evaluate_sliding_window(customer_id: str, window_days: int, threshold_amount: float):
     """
-    Check for structuring by summing inbound deposits in a rolling time window.
+    Check for structuring by summing only inbound deposit-like transactions in a
+    rolling time window.
 
     Returns:
     {
@@ -153,6 +154,9 @@ def _evaluate_sliding_window(customer_id: str, window_days: int, threshold_amoun
             "peak_hit": None,
         }
 
+    customer = repo.get_customer(customer_id) or {}
+    customer_account_ids = {acct["account_id"] for acct in customer.get("accounts", [])}
+
     deposits = []
     for txn in transactions:
         try:
@@ -160,8 +164,22 @@ def _evaluate_sliding_window(customer_id: str, window_days: int, threshold_amoun
         except (TypeError, ValueError):
             continue
 
-        # Only consider positive inbound deposits
         if amount <= 0:
+            continue
+
+        txn_type = (txn.get("txn_type") or "").lower()
+        source_account = txn.get("source_account")
+        destination_account = txn.get("destination_account")
+
+        is_deposit_like = (
+            txn_type in {"deposit", "cash_deposit", "credit", "wire_in", "incoming_transfer"}
+            or (
+                destination_account in customer_account_ids
+                and source_account not in customer_account_ids
+            )
+        )
+
+        if not is_deposit_like:
             continue
 
         created_at = txn.get("created_at")
@@ -177,28 +195,24 @@ def _evaluate_sliding_window(customer_id: str, window_days: int, threshold_amoun
             "transaction_id": txn.get("transaction_id"),
             "amount": amount,
             "created_at": ts,
-            "source_account": txn.get("source_account"),
-            "destination_account": txn.get("destination_account"),
+            "source_account": source_account,
+            "destination_account": destination_account,
             "merchant_or_counterparty": txn.get("merchant_or_counterparty"),
             "channel": txn.get("channel"),
             "txn_type": txn.get("txn_type"),
         })
 
-    # Sort oldest first for sliding-window logic
     deposits.sort(key=lambda x: x["created_at"])
 
     hits = []
     peak_hit = None
-
-    window_start_index = 0
     rolling_total = 0.0
     rolling_items = []
 
-    for idx, txn in enumerate(deposits):
+    for txn in deposits:
         rolling_total += txn["amount"]
         rolling_items.append(txn)
 
-        # Remove items older than the trailing window
         current_time = txn["created_at"]
         cutoff = current_time - timedelta(days=window_days)
 
