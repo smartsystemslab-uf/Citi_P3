@@ -195,3 +195,101 @@ def test_mid_and_back_office_mcp_contract_endpoints(client):
         "/back-office/resolve/missing",
         json={"correction_amount": 4.25, "note": "unit correction"},
     ).status_code == 404
+
+def test_aml_alert_list_and_filters(client):
+    import sqlite3
+
+    from app.aml_alert_repository import AML_DB_PATH
+
+    with sqlite3.connect(AML_DB_PATH) as conn:
+        conn.execute("DELETE FROM aml_alerts")
+
+        conn.executemany(
+            """
+            INSERT INTO aml_alerts (
+                alert_id,
+                customer_id,
+                alert_type,
+                detection_window_params,
+                cumulative_total,
+                threshold,
+                status,
+                raw_payload,
+                created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    "ALT-TEST001",
+                    "CUST-001",
+                    "structuring",
+                    "7d",
+                    12000.0,
+                    10000.0,
+                    "open",
+                    "{}",
+                    "2026-09-19T12:00:00+00:00",
+                ),
+                (
+                    "ALT-TEST002",
+                    "CUST-002",
+                    "structuring",
+                    "7d",
+                    15000.0,
+                    10000.0,
+                    "open",
+                    "{}",
+                    "2026-09-19T13:00:00+00:00",
+                ),
+                (
+                    "ALT-TEST003",
+                    "CUST-001",
+                    "sanctions",
+                    "single",
+                    5000.0,
+                    0.0,
+                    "cleared",
+                    "{}",
+                    "2026-09-19T14:00:00+00:00",
+                ),
+            ],
+        )
+
+    response = client.get("/aml/alerts")
+    assert response.status_code == 200
+    assert len(response.json()) == 3
+
+    response = client.get("/aml/alerts?status=open")
+    assert response.status_code == 200
+    assert len(response.json()) == 2
+    assert all(alert["status"] == "open" for alert in response.json())
+
+    response = client.get("/aml/alerts?customer_id=CUST-001")
+    assert response.status_code == 200
+    assert len(response.json()) == 2
+    assert all(
+        alert["customer_id"] == "CUST-001"
+        for alert in response.json()
+    )
+
+    response = client.get("/aml/alerts?alert_type=structuring")
+    assert response.status_code == 200
+    assert len(response.json()) == 2
+    assert all(
+        alert["alert_type"] == "structuring"
+        for alert in response.json()
+    )
+
+    response = client.get(
+        "/aml/alerts"
+        "?customer_id=CUST-001"
+        "&status=open"
+        "&alert_type=structuring"
+    )
+
+    assert response.status_code == 200
+    alerts = response.json()
+
+    assert len(alerts) == 1
+    assert alerts[0]["alert_id"] == "ALT-TEST001"

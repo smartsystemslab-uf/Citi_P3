@@ -15,6 +15,7 @@ from .schemas import (
 )
 from .banking_logic import evaluate_transaction, execute_transfer
 from .seed import init_db
+from .aml_alert_repository import list_aml_alerts
 
 app = FastAPI(
     title="Citi P3 Banking API",
@@ -364,3 +365,15 @@ def resolve_ledger_entry(
     db.add(AuditLog(event_type="ledger_correction", actor="back_office", payload=json.dumps(correction)))
     db.commit()
     return correction
+
+@app.get("/aml/alerts")
+def get_aml_alerts(
+    customer_id: str | None = None,
+    status: str | None = None,
+    alert_type: str | None = None,
+):
+    return list_aml_alerts(
+        customer_id=customer_id,
+        status=status,
+        alert_type=alert_type,
+    )

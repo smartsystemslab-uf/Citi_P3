@@ -235,3 +235,60 @@ def test_external_tool_success_and_fallback(repository, monkeypatch):
     assert json.loads(csr_tools.get_customer_financial_profile("missing"))["error"] == "offline"
     assert "local_results" in json.loads(knowledge_tools.search_policies("AML"))
 
+def test_list_aml_alerts_filters(tmp_path):
+    repository = BankingRepository(tmp_path / "alerts.db")
+    repository.initialize()
+
+    repository.create_aml_alert(
+        customer_id="CUST-001",
+        alert_type="structuring",
+        detection_window_params="7d",
+        cumulative_total=12000.0,
+        threshold=10000.0,
+        raw_payload="{}",
+        status="open",
+    )
+
+    repository.create_aml_alert(
+        customer_id="CUST-002",
+        alert_type="structuring",
+        detection_window_params="7d",
+        cumulative_total=15000.0,
+        threshold=10000.0,
+        raw_payload="{}",
+        status="open",
+    )
+
+    repository.create_aml_alert(
+        customer_id="CUST-001",
+        alert_type="sanctions",
+        detection_window_params="single",
+        cumulative_total=5000.0,
+        threshold=0.0,
+        raw_payload="{}",
+        status="cleared",
+    )
+
+    open_alerts = repository.list_aml_alerts(status="open")
+    assert len(open_alerts) == 2
+
+    customer_alerts = repository.list_aml_alerts(
+        customer_id="CUST-001"
+    )
+    assert len(customer_alerts) == 2
+
+    structuring_alerts = repository.list_aml_alerts(
+        alert_type="structuring"
+    )
+    assert len(structuring_alerts) == 2
+
+    filtered = repository.list_aml_alerts(
+        customer_id="CUST-001",
+        status="open",
+        alert_type="structuring",
+    )
+
+    assert len(filtered) == 1
+    assert filtered[0]["customer_id"] == "CUST-001"
+    assert filtered[0]["status"] == "open"
+    assert filtered[0]["alert_type"] == "structuring"
