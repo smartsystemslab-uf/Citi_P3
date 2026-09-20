@@ -11,11 +11,16 @@ from .schemas import (
     AccountCreate, AccountOut, CustomerCreate, CustomerOut, PolicyCreate, PolicyOut,
     RuleCreate, RuleOut, RiskDecision, TransactionEvaluateRequest, TransactionOut,
     LedgerCorrectionRequest, StaffingAdjustmentRequest, TransferRequest,
-    TransactionStatusUpdate,
+    TransactionStatusUpdate, AMLAlertStatusUpdate,
 )
 from .banking_logic import evaluate_transaction, execute_transfer
 from .seed import init_db
-from .aml_alert_repository import list_aml_alerts
+from .aml_alert_repository import (
+    AMLAlertNotFoundError,
+    InvalidAMLAlertTransitionError,
+    list_aml_alerts,
+    transition_aml_alert_status,
+)
 
 app = FastAPI(
     title="Citi P3 Banking API",
@@ -377,3 +382,24 @@ def get_aml_alerts(
         status=status,
         alert_type=alert_type,
     )
+
+@app.patch("/aml/alerts/{alert_id}/status")
+def update_aml_alert_status(
+    alert_id: str,
+    payload: AMLAlertStatusUpdate,
+):
+    try:
+        return transition_aml_alert_status(
+            alert_id=alert_id,
+            new_status=payload.status,
+        )
+    except AMLAlertNotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail="AML alert not found",
+        )
+    except InvalidAMLAlertTransitionError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail=str(exc),
+        )

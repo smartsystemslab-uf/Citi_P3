@@ -293,3 +293,83 @@ def test_aml_alert_list_and_filters(client):
 
     assert len(alerts) == 1
     assert alerts[0]["alert_id"] == "ALT-TEST001"
+
+def test_aml_alert_status_transitions(client):
+    import sqlite3
+
+    from app.aml_alert_repository import AML_DB_PATH
+
+    with sqlite3.connect(AML_DB_PATH) as conn:
+        conn.execute("DELETE FROM aml_alerts")
+
+        conn.executemany(
+            """
+            INSERT INTO aml_alerts (
+                alert_id,
+                customer_id,
+                alert_type,
+                detection_window_params,
+                cumulative_total,
+                threshold,
+                status,
+                raw_payload,
+                created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    "ALT-TRANSITION-1",
+                    "CUST-001",
+                    "structuring",
+                    "7d",
+                    12000.0,
+                    10000.0,
+                    "open",
+                    "{}",
+                    "2026-09-19T12:00:00+00:00",
+                ),
+                (
+                    "ALT-TRANSITION-2",
+                    "CUST-002",
+                    "structuring",
+                    "7d",
+                    14000.0,
+                    10000.0,
+                    "open",
+                    "{}",
+                    "2026-09-19T13:00:00+00:00",
+                ),
+            ],
+        )
+
+    response = client.patch(
+        "/aml/alerts/ALT-TRANSITION-1/status",
+        json={"status": "in-investigation"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "in-investigation"
+
+    response = client.patch(
+        "/aml/alerts/ALT-TRANSITION-1/status",
+        json={"status": "cleared"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "cleared"
+
+    response = client.patch(
+        "/aml/alerts/ALT-TRANSITION-2/status",
+        json={"status": "cleared"},
+    )
+
+    assert response.status_code == 409
+    assert "open -> cleared" in response.json()["detail"]
+
+    response = client.patch(
+        "/aml/alerts/DOES-NOT-EXIST/status",
+        json={"status": "in-investigation"},
+    )
+
+    assert response.status_code == 404

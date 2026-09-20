@@ -111,3 +111,6 @@ class StaffingAdjustmentRequest(BaseModel):
 class LedgerCorrectionRequest(BaseModel):
     correction_amount: float
     note: str = Field(min_length=1)
+
+class AMLAlertStatusUpdate(BaseModel):
+    status: str
