@@ -65,6 +65,13 @@ class BankingRepository:
             raw_payload TEXT,
             created_at TEXT
         );
+        CREATE TABLE IF NOT EXISTS aml_alert_status_history (
+            history_id TEXT PRIMARY KEY,
+            alert_id TEXT NOT NULL,
+            previous_status TEXT NOT NULL,
+            new_status TEXT NOT NULL,
+            changed_at TEXT NOT NULL
+        );
         """
         with self.connect() as conn:
             conn.executescript(schema)

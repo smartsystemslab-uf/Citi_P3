@@ -1,7 +1,8 @@
 import os
 import sqlite3
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
-
 
 DEFAULT_AML_DB_PATH = (
     Path(__file__).resolve().parents[2]
@@ -63,6 +64,19 @@ def list_aml_alerts(
 
     return [dict(row) for row in rows]
 
+def _ensure_status_history_table(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS aml_alert_status_history (
+            history_id TEXT PRIMARY KEY,
+            alert_id TEXT NOT NULL,
+            previous_status TEXT NOT NULL,
+            new_status TEXT NOT NULL,
+            changed_at TEXT NOT NULL
+        )
+        """
+    )
+
 def transition_aml_alert_status(
     alert_id: str,
     new_status: str,
@@ -94,10 +108,33 @@ def transition_aml_alert_status(
                 f"Invalid AML alert status transition: "
                 f"{current_status} -> {new_status}"
             )
+        _ensure_status_history_table(conn)
 
+        history_id = f"HIST-{uuid.uuid4().hex[:8].upper()}"
+        changed_at = datetime.now(timezone.utc).isoformat()
         conn.execute(
             "UPDATE aml_alerts SET status = ? WHERE alert_id = ?",
             (new_status, alert_id),
+        )
+
+        conn.execute(
+            """
+            INSERT INTO aml_alert_status_history (
+                history_id,
+                alert_id,
+                previous_status,
+                new_status,
+                changed_at
+            )
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                history_id,
+                alert_id,
+                current_status,
+                new_status,
+                changed_at,
+            ),
         )
 
         updated = conn.execute(
