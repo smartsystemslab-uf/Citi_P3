@@ -1,4 +1,4 @@
-from citi_banking_adk_mlflow_observability.bank_adk.tools.aml_tools import detect_mule_rings
+from bank_adk.tools.aml_tools import detect_mule_rings
 
 def test_task8_synthetic_closed_loop():
     """

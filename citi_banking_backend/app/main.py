@@ -1,17 +1,19 @@
 import json
 import uuid
+
 from datetime import date, datetime, time, timedelta
 
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
-from fastapi import Depends, FastAPI, HTTPException, Query, APIRouter, Depends
+from fastapi import Depends, FastAPI, HTTPException, Query, APIRouter
 from .database import get_db, refresh_customer_baselines
-from .models import Account, AuditLog, Customer, Policy, Rule, Transaction
+from .models import Account, AuditLog, Customer, Policy, Rule, Transaction, SARDraft
 from .schemas import (
     AccountCreate, AccountOut, CustomerCreate, CustomerOut, PolicyCreate, PolicyOut,
     RuleCreate, RuleOut, RiskDecision, TransactionEvaluateRequest, TransactionOut,
     LedgerCorrectionRequest, StaffingAdjustmentRequest, TransferRequest,
     TransactionStatusUpdate, IdentityVerificationRequest, AMLAlertStatusUpdate,
+    SARDraftCreate, SARDraftOut, SARDraftReviewRequest,
 )
 from .banking_logic import evaluate_transaction, execute_transfer
 from .seed import init_db
@@ -449,3 +451,66 @@ def update_aml_alert_status(
             status_code=409,
             detail=str(exc),
         )
+
+@app.post("/aml/sar-drafts", response_model=SARDraftOut)
+def create_sar_draft(payload: SARDraftCreate, db: Session = Depends(get_db)):
+    draft = SARDraft(
+        draft_id=f"SAR-{uuid.uuid4().hex[:12]}",
+        case_id=payload.case_id,
+        original_draft=payload.original_draft,
+    )
+
+    db.add(draft)
+    db.commit()
+    db.refresh(draft)
+
+    return draft
+
+@app.get("/aml/sar-drafts/{draft_id}", response_model=SARDraftOut)
+def get_sar_draft(draft_id: str, db: Session = Depends(get_db)):
+    draft = db.scalar(
+        select(SARDraft).where(SARDraft.draft_id == draft_id)
+    )
+
+    if not draft:
+        raise HTTPException(status_code=404, detail="SAR draft not found")
+
+    return draft
+
+@app.patch(
+    "/aml/sar-drafts/{draft_id}/review",
+    response_model=SARDraftOut,
+)
+def review_sar_draft(
+    draft_id: str,
+    payload: SARDraftReviewRequest,
+    db: Session = Depends(get_db),
+):
+    draft = db.scalar(
+        select(SARDraft).where(SARDraft.draft_id == draft_id)
+    )
+
+    if not draft:
+        raise HTTPException(status_code=404, detail="SAR draft not found")
+
+    draft.edited_draft = payload.edited_draft
+    draft.reviewer = payload.reviewer
+    draft.approved = payload.approved
+    draft.reviewed_at = datetime.utcnow()
+
+    db.add(
+        AuditLog(
+            event_type="sar_draft_review",
+            actor=payload.reviewer,
+            payload=json.dumps({
+                "draft_id": draft.draft_id,
+                "approved": payload.approved,
+            }),
+        )
+    )
+
+    db.commit()
+    db.refresh(draft)
+
+    return draft
+

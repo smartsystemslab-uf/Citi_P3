@@ -519,3 +519,50 @@ def test_aml_alert_status_changes_are_logged(client):
     assert history[1]["previous_status"] == "in-investigation"
     assert history[1]["new_status"] == "cleared"
     assert history[1]["changed_at"]
+
+def test_sar_draft_human_review_preserves_original(client):
+    created = client.post(
+        "/aml/sar-drafts",
+        json={
+            "case_id": "CASE-001",
+            "original_draft": "Original generated SAR narrative.",
+        }, 
+    )
+
+    assert created.status_code == 200
+
+    draft_id = created.json()["draft_id"]
+
+    fetched = client.get(f"/aml/sar-drafts/{draft_id}")
+
+    assert fetched.status_code == 200
+    assert (
+        fetched.json()["original_draft"]
+        == "Original generated SAR narrative."
+    )
+
+    reviewed = client.patch(
+        f"/aml/sar-drafts/{draft_id}/review",
+        json={
+            "edited_draft": "Human-edited SAR narrative.",
+            "reviewer": "reviewer-001",
+            "approved": True,
+        },
+    )
+
+    assert reviewed.status_code == 200
+
+    body = reviewed.json()
+
+    assert body["original_draft"] == "Original generated SAR narrative."
+    assert body["edited_draft"] == "Human-edited SAR narrative."
+    assert body["reviewer"] == "reviewer-001"
+    assert body["approved"] is True
+    assert body["reviewed_at"] is not None
+
+    fetched_again = client.get(f"/aml/sar-drafts/{draft_id}")
+    stored = fetched_again.json()
+
+    assert stored["original_draft"] == "Original generated SAR narrative."
+    assert stored["edited_draft"] == "Human-edited SAR narrative."
+

@@ -6,5 +6,5 @@ _WORKFLOW_BY_AGENT = {
     # New AML registrations
     "aml_office_router": "wf-aml-investigation",
     "aml_investigator": "wf-aml-investigation",
-    "aml_reporter": "wf-aml-investigation"
+    "sar_drafting_agent": "wf-aml-investigation"
 }

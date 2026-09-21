@@ -112,3 +112,26 @@ class CustomerRiskProfile(Base):
     peak_transfer_amount: Mapped[float] = mapped_column(Float, default=0.0)
     top_mccs: Mapped[str] = mapped_column(Text, default="[]") # Stored as JSON string
     last_updated: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class SARDraft(Base):
+    __tablename__ = "sar_drafts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    draft_id: Mapped[str] = mapped_column(
+        String(64), unique=True, index=True, nullable=False
+    )
+    case_id: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+
+    original_draft: Mapped[str] = mapped_column(Text, nullable=False)
+    edited_draft: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    reviewer: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    approved: Mapped[bool] = mapped_column(default=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True
+    )
+
