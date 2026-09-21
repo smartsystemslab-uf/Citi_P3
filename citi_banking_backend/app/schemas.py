@@ -118,3 +118,6 @@ class IdentityVerificationRequest(BaseModel):
     submitted_name: str
     submitted_dob: str
     submitted_id_number: str
+
+class AMLAlertStatusUpdate(BaseModel):
+    status: str

@@ -259,3 +259,263 @@ def test_aml_verify_identity_endpoint(client):
     )
 
     assert missing.status_code == 404
+
+def test_aml_alert_list_and_filters(client):
+    import sqlite3
+
+    from app.aml_alert_repository import AML_DB_PATH
+
+    with sqlite3.connect(AML_DB_PATH) as conn:
+        conn.execute("DELETE FROM aml_alerts")
+
+        conn.executemany(
+            """
+            INSERT INTO aml_alerts (
+                alert_id,
+                customer_id,
+                alert_type,
+                detection_window_params,
+                cumulative_total,
+                threshold,
+                status,
+                raw_payload,
+                created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    "ALT-TEST001",
+                    "CUST-001",
+                    "structuring",
+                    "7d",
+                    12000.0,
+                    10000.0,
+                    "open",
+                    "{}",
+                    "2026-09-19T12:00:00+00:00",
+                ),
+                (
+                    "ALT-TEST002",
+                    "CUST-002",
+                    "structuring",
+                    "7d",
+                    15000.0,
+                    10000.0,
+                    "open",
+                    "{}",
+                    "2026-09-19T13:00:00+00:00",
+                ),
+                (
+                    "ALT-TEST003",
+                    "CUST-001",
+                    "sanctions",
+                    "single",
+                    5000.0,
+                    0.0,
+                    "cleared",
+                    "{}",
+                    "2026-09-19T14:00:00+00:00",
+                ),
+            ],
+        )
+
+    response = client.get("/aml/alerts")
+    assert response.status_code == 200
+    assert len(response.json()) == 3
+
+    response = client.get("/aml/alerts?status=open")
+    assert response.status_code == 200
+    assert len(response.json()) == 2
+    assert all(alert["status"] == "open" for alert in response.json())
+
+    response = client.get("/aml/alerts?customer_id=CUST-001")
+    assert response.status_code == 200
+    assert len(response.json()) == 2
+    assert all(
+        alert["customer_id"] == "CUST-001"
+        for alert in response.json()
+    )
+
+    response = client.get("/aml/alerts?alert_type=structuring")
+    assert response.status_code == 200
+    assert len(response.json()) == 2
+    assert all(
+        alert["alert_type"] == "structuring"
+        for alert in response.json()
+    )
+
+    response = client.get(
+        "/aml/alerts"
+        "?customer_id=CUST-001"
+        "&status=open"
+        "&alert_type=structuring"
+    )
+
+    assert response.status_code == 200
+    alerts = response.json()
+
+    assert len(alerts) == 1
+    assert alerts[0]["alert_id"] == "ALT-TEST001"
+
+def test_aml_alert_status_transitions(client):
+    import sqlite3
+
+    from app.aml_alert_repository import AML_DB_PATH
+
+    with sqlite3.connect(AML_DB_PATH) as conn:
+        conn.execute("DELETE FROM aml_alerts")
+
+        conn.executemany(
+            """
+            INSERT INTO aml_alerts (
+                alert_id,
+                customer_id,
+                alert_type,
+                detection_window_params,
+                cumulative_total,
+                threshold,
+                status,
+                raw_payload,
+                created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    "ALT-TRANSITION-1",
+                    "CUST-001",
+                    "structuring",
+                    "7d",
+                    12000.0,
+                    10000.0,
+                    "open",
+                    "{}",
+                    "2026-09-19T12:00:00+00:00",
+                ),
+                (
+                    "ALT-TRANSITION-2",
+                    "CUST-002",
+                    "structuring",
+                    "7d",
+                    14000.0,
+                    10000.0,
+                    "open",
+                    "{}",
+                    "2026-09-19T13:00:00+00:00",
+                ),
+            ],
+        )
+
+    response = client.patch(
+        "/aml/alerts/ALT-TRANSITION-1/status",
+        json={"status": "in-investigation"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "in-investigation"
+
+    response = client.patch(
+        "/aml/alerts/ALT-TRANSITION-1/status",
+        json={"status": "cleared"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "cleared"
+
+    response = client.patch(
+        "/aml/alerts/ALT-TRANSITION-2/status",
+        json={"status": "cleared"},
+    )
+
+    assert response.status_code == 409
+    assert "open -> cleared" in response.json()["detail"]
+
+    response = client.patch(
+        "/aml/alerts/DOES-NOT-EXIST/status",
+        json={"status": "in-investigation"},
+    )
+
+    assert response.status_code == 404
+
+def test_aml_alert_status_changes_are_logged(client):
+    import sqlite3
+
+    from app.aml_alert_repository import AML_DB_PATH
+
+    with sqlite3.connect(AML_DB_PATH) as conn:
+        conn.execute("DELETE FROM aml_alerts")
+        conn.execute("DROP TABLE IF EXISTS aml_alert_status_history")
+
+        conn.execute(
+            """
+            INSERT INTO aml_alerts (
+                alert_id,
+                customer_id,
+                alert_type,
+                detection_window_params,
+                cumulative_total,
+                threshold,
+                status,
+                raw_payload,
+                created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "ALT-HISTORY-1",
+                "CUST-001",
+                "structuring",
+                "7d",
+                12000.0,
+                10000.0,
+                "open",
+                "{}",
+                "2026-09-19T12:00:00+00:00",
+            ),
+        )
+
+    response = client.patch(
+        "/aml/alerts/ALT-HISTORY-1/status",
+        json={"status": "in-investigation"},
+    )
+
+    assert response.status_code == 200
+
+    response = client.patch(
+        "/aml/alerts/ALT-HISTORY-1/status",
+        json={"status": "cleared"},
+    )
+
+    assert response.status_code == 200
+
+    # This transition is invalid and must not create history.
+    response = client.patch(
+        "/aml/alerts/ALT-HISTORY-1/status",
+        json={"status": "open"},
+    )
+
+    assert response.status_code == 409
+
+    with sqlite3.connect(AML_DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+
+        history = conn.execute(
+            """
+            SELECT *
+            FROM aml_alert_status_history
+            WHERE alert_id = ?
+            ORDER BY changed_at ASC
+            """,
+            ("ALT-HISTORY-1",),
+        ).fetchall()
+
+    assert len(history) == 2
+
+    assert history[0]["previous_status"] == "open"
+    assert history[0]["new_status"] == "in-investigation"
+    assert history[0]["changed_at"]
+
+    assert history[1]["previous_status"] == "in-investigation"
+    assert history[1]["new_status"] == "cleared"
+    assert history[1]["changed_at"]

@@ -65,6 +65,13 @@ class BankingRepository:
             raw_payload TEXT,
             created_at TEXT
         );
+        CREATE TABLE IF NOT EXISTS aml_alert_status_history (
+            history_id TEXT PRIMARY KEY,
+            alert_id TEXT NOT NULL,
+            previous_status TEXT NOT NULL,
+            new_status TEXT NOT NULL,
+            changed_at TEXT NOT NULL
+        );
         """
         with self.connect() as conn:
             conn.executescript(schema)
@@ -161,11 +168,35 @@ class BankingRepository:
     def get_aml_alert(self, alert_id: str) -> dict[str, Any] | None:
         return self._one("SELECT * FROM aml_alerts WHERE alert_id = ?", alert_id)
 
-    def list_aml_alerts(self, customer_id: str | None = None) -> list[dict[str, Any]]:
+    def list_aml_alerts(
+        self,
+        customer_id: str | None = None,
+        status: str | None = None,
+        alert_type: str | None = None,
+    ) -> list[dict[str, Any]]:
+        query = "SELECT * FROM aml_alerts"
+        conditions = []
+        params = []
+
         if customer_id:
-            return self._all("SELECT * FROM aml_alerts WHERE customer_id = ? ORDER BY created_at DESC", customer_id)
-        else:
-            return self._all("SELECT * FROM aml_alerts ORDER BY created_at DESC")
+            conditions.append("customer_id = ?")
+            params.append(customer_id)
+
+        if status:
+            conditions.append("status = ?")
+            params.append(status)
+
+        if alert_type:
+            conditions.append("alert_type = ?")
+            params.append(alert_type)
+
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+
+        query += " ORDER BY created_at DESC"
+
+        return self._all(query, *params)
+
     
     def save_schedule(self, schedule_json: str):
         sid = f"SCH-{uuid.uuid4().hex[:8].upper()}"
