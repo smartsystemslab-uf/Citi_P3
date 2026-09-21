@@ -13,6 +13,8 @@ SEED_CUSTOMERS = [
     Customer(
         customer_id="CUST-001",
         full_name="Ava Patel",
+        date_of_birth=date(2000, 2, 29),
+        id_number="FL-001234",
         email="ava.patel.demo@example.com",
         phone="352-555-0101",
         address="Gainesville, FL",

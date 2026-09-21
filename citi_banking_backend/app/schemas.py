@@ -11,6 +11,7 @@ class CustomerCreate(BaseModel):
     risk_level: str = "low"
 
 class CustomerOut(CustomerCreate):
+    identity_match_confidence: float | None = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -111,3 +112,9 @@ class StaffingAdjustmentRequest(BaseModel):
 class LedgerCorrectionRequest(BaseModel):
     correction_amount: float
     note: str = Field(min_length=1)
+
+class IdentityVerificationRequest(BaseModel):
+    customer_id: str
+    submitted_name: str
+    submitted_dob: str
+    submitted_id_number: str
