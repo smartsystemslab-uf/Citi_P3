@@ -67,7 +67,8 @@ def test_settings_callbacks_and_agent_factories():
     assert build_front_office_router().name == "front_office_router"
     assert build_mid_office_router().name == "mid_office_router"
     assert build_back_office_router().name == "back_office_router"
-    assert len(build_root_agent().sub_agents) == 3
+    assert len(build_root_agent().sub_agents) == 4
+    assert "aml_office_router" in [a.name for a in build_root_agent().sub_agents]
     agents = [LlmAgent(name=f"a{i}") for i in range(6)]
     assert len(build_mid_office_planning_workflow(*agents).sub_agents) == 5
     agents = [LlmAgent(name=f"b{i}") for i in range(5)]

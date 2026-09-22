@@ -2,9 +2,14 @@ import json
 import re
 from typing import Any, AsyncGenerator, Optional
 
-from google.adk.agents import BaseAgent, LlmAgent, ParallelAgent, SequentialAgent
+from google.adk.agents import Agent, BaseAgent, LlmAgent, ParallelAgent, SequentialAgent
 from google.adk.agents.invocation_context import InvocationContext
 from google.adk.events import Event
+from ..sar_prompt import format_sar_case_facts
+
+from ..tools.aml_tools import check_threshold_anomaly
+
+
 
 
 def _state_get(ctx: InvocationContext, key: str) -> Any:
@@ -264,8 +269,6 @@ class AmlInvestigationWorkflowAgent(BaseAgent):
     investigator_agent: LlmAgent
     reporter_agent: LlmAgent
 
-    model_config = {"arbitrary_types_allowed": True}
-
     def __init__(
         self,
         name: str,
@@ -293,6 +296,12 @@ class AmlInvestigationWorkflowAgent(BaseAgent):
             
         # Step 2: Extract investigator output from session state
         investigation = _extract_json(_state_get(ctx, "aml_investigation_summary"))
+        
+        case_facts = investigation.get("case_facts", {})
+
+        ctx.session.state["aml_sar_case_facts"] = format_sar_case_facts(
+            case_facts
+        )
         
         # Step 3: Conditionally run the reporter agent based on findings
         risk_score = investigation.get("risk_score", 0)

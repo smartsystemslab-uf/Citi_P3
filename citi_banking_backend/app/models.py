@@ -1,5 +1,5 @@
 from datetime import datetime, date
-from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, Column
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .database import Base
 
@@ -9,6 +9,11 @@ class Customer(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     customer_id: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
     full_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    date_of_birth: Mapped[date | None] = mapped_column(Date, nullable=True)
+    id_number: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    identity_match_confidence: Mapped[float | None] = mapped_column(
+        Float, nullable=True
+    )
     email: Mapped[str | None] = mapped_column(String(128), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
     address: Mapped[str | None] = mapped_column(String(256), nullable=True)
@@ -75,6 +80,9 @@ class Transaction(Base):
     risk_score: Mapped[int] = mapped_column(Integer, default=0)
     decision_reason: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    device_id: Mapped[str] = mapped_column(String(64), index=True, nullable=True)
+    ip_address: Mapped[str] = mapped_column(String(64), index=True, nullable=True)
+    mcc : Mapped[str] = mapped_column(String(4), index=True, nullable=True)  # Merchant Category Code
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
@@ -84,3 +92,46 @@ class AuditLog(Base):
     actor: Mapped[str] = mapped_column(String(64), default="system")
     payload: Mapped[str] = mapped_column(Text, default="{}")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+class AMLAlert(Base):
+    __tablename__ = "aml_alerts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    alert_type: Mapped[str] = mapped_column(String(64), index=True, nullable=False) # e.g., 'mule_ring', 'device_sharing'
+    entity_id: Mapped[str] = mapped_column(String(128), index=True) # The flagged device_id or account_id
+    description: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    status: Mapped[str] = mapped_column(String(32), default="open")
+
+class CustomerRiskProfile(Base):
+    __tablename__ = "customer_risk_profile"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    account_id: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
+    avg_weekly_volume: Mapped[float] = mapped_column(Float, default=0.0)
+    peak_transfer_amount: Mapped[float] = mapped_column(Float, default=0.0)
+    top_mccs: Mapped[str] = mapped_column(Text, default="[]") # Stored as JSON string
+    last_updated: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class SARDraft(Base):
+    __tablename__ = "sar_drafts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    draft_id: Mapped[str] = mapped_column(
+        String(64), unique=True, index=True, nullable=False
+    )
+    case_id: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+
+    original_draft: Mapped[str] = mapped_column(Text, nullable=False)
+    edited_draft: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    reviewer: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    approved: Mapped[bool] = mapped_column(default=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True
+    )
+

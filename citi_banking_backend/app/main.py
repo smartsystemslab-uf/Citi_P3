@@ -1,20 +1,29 @@
 import json
 import uuid
+
 from datetime import date, datetime, time, timedelta
 
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
-from fastapi import Depends, FastAPI, HTTPException, Query
-from .database import get_db
-from .models import Account, AuditLog, Customer, Policy, Rule, Transaction
+from fastapi import Depends, FastAPI, HTTPException, Query, APIRouter
+from .database import get_db, refresh_customer_baselines
+from .models import Account, AuditLog, Customer, Policy, Rule, Transaction, SARDraft
 from .schemas import (
     AccountCreate, AccountOut, CustomerCreate, CustomerOut, PolicyCreate, PolicyOut,
     RuleCreate, RuleOut, RiskDecision, TransactionEvaluateRequest, TransactionOut,
     LedgerCorrectionRequest, StaffingAdjustmentRequest, TransferRequest,
-    TransactionStatusUpdate,
+    TransactionStatusUpdate, IdentityVerificationRequest, AMLAlertStatusUpdate,
+    SARDraftCreate, SARDraftOut, SARDraftReviewRequest,
 )
 from .banking_logic import evaluate_transaction, execute_transfer
 from .seed import init_db
+from .aml_logic import score_identity
+from .aml_alert_repository import (
+    AMLAlertNotFoundError,
+    InvalidAMLAlertTransitionError,
+    list_aml_alerts,
+    transition_aml_alert_status,
+)
 
 app = FastAPI(
     title="Citi P3 Banking API",
@@ -364,3 +373,144 @@ def resolve_ledger_entry(
     db.add(AuditLog(event_type="ledger_correction", actor="back_office", payload=json.dumps(correction)))
     db.commit()
     return correction
+
+@app.post("/aml/refresh-baselines")
+def trigger_baseline_refresh(db: Session = Depends(get_db)):
+    updated_profiles = refresh_customer_baselines(db)
+    return {"status": "success", "profiles_refreshed": updated_profiles}
+@app.post("/aml/verify-identity")
+def verify_identity(
+    payload: IdentityVerificationRequest,
+    db: Session = Depends(get_db),
+):
+    customer = db.scalar(
+        select(Customer).where(
+            Customer.customer_id == payload.customer_id
+        )
+    )
+
+    if not customer:
+        raise HTTPException(
+            status_code=404,
+            detail="customer not found",
+        )
+
+    if customer.date_of_birth is None or not customer.id_number:
+        raise HTTPException(
+            status_code=400,
+            detail="customer identity reference data is incomplete",
+        )
+
+    result = score_identity(
+        submitted_name=payload.submitted_name,
+        submitted_dob=payload.submitted_dob,
+        submitted_id_number=payload.submitted_id_number,
+        reference_name=customer.full_name,
+        reference_dob=customer.date_of_birth.isoformat(),
+        reference_id_number=customer.id_number,
+    )
+
+    customer.identity_match_confidence = result["match_confidence"]
+    db.commit()
+    db.refresh(customer)
+
+    return {
+        "customer_id": customer.customer_id,
+        **result,
+    }
+
+@app.get("/aml/alerts")
+def get_aml_alerts(
+    customer_id: str | None = None,
+    status: str | None = None,
+    alert_type: str | None = None,
+):
+    return list_aml_alerts(
+        customer_id=customer_id,
+        status=status,
+        alert_type=alert_type,
+    )
+
+@app.patch("/aml/alerts/{alert_id}/status")
+def update_aml_alert_status(
+    alert_id: str,
+    payload: AMLAlertStatusUpdate,
+):
+    try:
+        return transition_aml_alert_status(
+            alert_id=alert_id,
+            new_status=payload.status,
+        )
+    except AMLAlertNotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail="AML alert not found",
+        )
+    except InvalidAMLAlertTransitionError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail=str(exc),
+        )
+
+@app.post("/aml/sar-drafts", response_model=SARDraftOut)
+def create_sar_draft(payload: SARDraftCreate, db: Session = Depends(get_db)):
+    draft = SARDraft(
+        draft_id=f"SAR-{uuid.uuid4().hex[:12]}",
+        case_id=payload.case_id,
+        original_draft=payload.original_draft,
+    )
+
+    db.add(draft)
+    db.commit()
+    db.refresh(draft)
+
+    return draft
+
+@app.get("/aml/sar-drafts/{draft_id}", response_model=SARDraftOut)
+def get_sar_draft(draft_id: str, db: Session = Depends(get_db)):
+    draft = db.scalar(
+        select(SARDraft).where(SARDraft.draft_id == draft_id)
+    )
+
+    if not draft:
+        raise HTTPException(status_code=404, detail="SAR draft not found")
+
+    return draft
+
+@app.patch(
+    "/aml/sar-drafts/{draft_id}/review",
+    response_model=SARDraftOut,
+)
+def review_sar_draft(
+    draft_id: str,
+    payload: SARDraftReviewRequest,
+    db: Session = Depends(get_db),
+):
+    draft = db.scalar(
+        select(SARDraft).where(SARDraft.draft_id == draft_id)
+    )
+
+    if not draft:
+        raise HTTPException(status_code=404, detail="SAR draft not found")
+
+    draft.edited_draft = payload.edited_draft
+    draft.reviewer = payload.reviewer
+    draft.approved = payload.approved
+    draft.reviewed_at = datetime.utcnow()
+
+    db.add(
+        AuditLog(
+            event_type="sar_draft_review",
+            actor=payload.reviewer,
+            payload=json.dumps({
+                "draft_id": draft.draft_id,
+                "approved": payload.approved,
+            }),
+        )
+    )
+
+    db.commit()
+    db.refresh(draft)
+
+    return draft
+

@@ -11,6 +11,7 @@ class CustomerCreate(BaseModel):
     risk_level: str = "low"
 
 class CustomerOut(CustomerCreate):
+    identity_match_confidence: float | None = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -111,3 +112,38 @@ class StaffingAdjustmentRequest(BaseModel):
 class LedgerCorrectionRequest(BaseModel):
     correction_amount: float
     note: str = Field(min_length=1)
+
+
+class IdentityVerificationRequest(BaseModel):
+    customer_id: str
+    submitted_name: str
+    submitted_dob: str
+    submitted_id_number: str
+
+class AMLAlertStatusUpdate(BaseModel):
+    status: str
+
+class SARDraftCreate(BaseModel):
+    case_id: str
+    original_draft: str = Field(min_length=1)
+
+
+class SARDraftReviewRequest(BaseModel):
+    edited_draft: str = Field(min_length=1)
+    reviewer: str = Field(min_length=1)
+    approved: bool = True
+
+
+class SARDraftOut(BaseModel):
+    draft_id: str
+    case_id: str
+    original_draft: str
+    edited_draft: str | None
+    reviewer: str | None
+    approved: bool
+    created_at: datetime
+    reviewed_at: datetime | None
+
+    class Config:
+        from_attributes = True
+
