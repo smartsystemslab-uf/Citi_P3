@@ -1,5 +1,8 @@
 import json
-from datetime import datetime, timedelta
+import unicodedata
+from datetime import date, datetime, timedelta
+
+import networkx as nx
 
 from ..infra.repository import repo
 
@@ -159,3 +162,126 @@ def detect_structuring(customer_id: str, window_days: int = 7, threshold_amount:
         "peak_cumulative_total": peak_hit["cumulative_total"],
         "hits": detection_result["hits"],
     }, indent=2)
+
+
+def check_threshold_anomaly(account_id: str, transaction_id: str, amount: float) -> dict:
+    """Evaluates if a transaction deviates sharply (>5x peak) from the customer's baseline.
+
+    Note: uses a hardcoded baseline rather than real CustomerRiskProfile data — a known
+    limitation carried over as-is, not fixed as part of this move.
+    """
+    profile = {"peak_transfer_amount": 1000.0}
+    threshold = profile["peak_transfer_amount"] * 5
+    is_anomalous = amount > threshold
+    if is_anomalous:
+        return {"flagged": True, "reason": "Exceeded 5x peak transfer amount", "status": "review"}
+    return {"flagged": False, "reason": "Within normal bounds"}
+
+
+def find_mule_rings_for_customer(customer_id: str, max_depth: int = 5) -> list[list[str]]:
+    """Builds a directed graph from a customer's own transaction flows and detects closed
+    loops (mule rings) among the accounts visible in that history.
+
+    Note: scoped to one customer's transaction history, so it can only see ring segments
+    where this customer's own accounts appear as an endpoint — a ring entirely between
+    other customers' accounts would be invisible to this call. A system-wide query would
+    close that gap but is out of scope for this pass.
+    """
+    transactions = repo.get_customer_transactions(customer_id)
+
+    graph = nx.DiGraph()
+    for tx in transactions:
+        source = tx.get("source_account")
+        destination = tx.get("destination_account")
+        if source and destination:
+            graph.add_edge(source, destination)
+
+    try:
+        cycles = list(nx.simple_cycles(graph))
+        return [cycle for cycle in cycles if 2 <= len(cycle) <= max_depth]
+    except nx.NetworkXNoCycle:
+        return []
+
+
+def _normalize_name(value: str) -> str:
+    if not isinstance(value, str):
+        return ""
+    normalized = " ".join(unicodedata.normalize("NFC", value).casefold().split())
+    return normalized if any(char.isalpha() for char in normalized) else ""
+
+
+def _name_similarity(submitted: str, reference: str) -> float:
+    """Return one minus Levenshtein edit distance divided by the longer length."""
+    if not submitted or not reference:
+        return 0.0
+    if submitted == reference:
+        return 1.0
+    if len(submitted) < len(reference):
+        submitted, reference = reference, submitted
+
+    previous = list(range(len(reference) + 1))
+    for row, left in enumerate(submitted, start=1):
+        current = [row]
+        for column, right in enumerate(reference, start=1):
+            current.append(min(
+                current[-1] + 1,
+                previous[column] + 1,
+                previous[column - 1] + (left != right),
+            ))
+        previous = current
+    return 1.0 - previous[-1] / len(submitted)
+
+
+def _parse_dob(value: str) -> date | None:
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    try:
+        parsed = date.fromisoformat(value)
+    except ValueError:
+        return None
+    # Enforce YYYY-MM-DD even on Python versions accepting other ISO formats.
+    return parsed if parsed.isoformat() == value else None
+
+
+def _normalize_id(value: str) -> str:
+    if not isinstance(value, str):
+        return ""
+    value = value.strip()
+    return value if any(char.isalnum() for char in value) else ""
+
+
+def verify_identity_document(
+    submitted_name: str,
+    submitted_dob: str,
+    submitted_id_number: str,
+    reference_name: str,
+    reference_dob: str,
+    reference_id_number: str,
+) -> dict:
+    """Score submitted identity fields against caller-supplied trusted fields.
+
+    Names use Unicode NFC, case folding, collapsed whitespace, and normalized
+    Levenshtein similarity. DOBs must be real calendar dates in YYYY-MM-DD format and
+    match exactly. IDs match exactly, preserving case, spacing, and punctuation.
+    Missing, non-string, or invalid values earn zero for that field.
+
+    Returns a dictionary with status="success", field_scores for name/dob/id_number,
+    and match_confidence, all scores in [0, 1]. The total is
+    0.30 * name + 0.30 * dob + 0.40 * id_number.
+    """
+    name_score = round(_name_similarity(
+        _normalize_name(submitted_name), _normalize_name(reference_name)
+    ), 4)
+    document_dob = _parse_dob(submitted_dob)
+    customer_dob = _parse_dob(reference_dob)
+    dob_score = float(document_dob is not None and document_dob == customer_dob)
+    document_id = _normalize_id(submitted_id_number)
+    customer_id = _normalize_id(reference_id_number)
+    id_score = float(bool(document_id) and document_id == customer_id)
+
+    return {
+        "status": "success",
+        "match_confidence": round(0.30 * name_score + 0.30 * dob_score + 0.40 * id_score, 4),
+        "field_scores": {"name": name_score, "dob": dob_score, "id_number": id_score},
+    }

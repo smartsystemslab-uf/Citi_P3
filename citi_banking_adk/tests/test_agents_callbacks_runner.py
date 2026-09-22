@@ -172,6 +172,7 @@ def test_agent_factories_and_app_structure():
         "front_office_router",
         "mid_office_router",
         "back_office_router",
+        "aml_office_router",
     ]
     app = create_app()
     assert app.name == "citi_banking_adk"
