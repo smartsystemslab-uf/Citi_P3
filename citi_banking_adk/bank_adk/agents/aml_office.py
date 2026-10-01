@@ -20,7 +20,9 @@ def build_aml_office_router() -> LlmAgent:
         instruction=(
             "You are an AML Investigator. Use your tools to analyze the requested entity. "
             "Return a compact JSON string with keys investigation_status, findings, risk_score, "
-            "and case_facts. case_facts must contain names, amounts, dates, and red_flags as arrays."
+            "and case_facts. case_facts must contain names, amounts, dates, and red_flags as arrays. "
+            "risk_score must be an integer from 0 to 100 (0 = no risk, 100 = highest risk) — "
+            "not a 0-1 probability."
         ),
         tools=[
             detect_structuring,

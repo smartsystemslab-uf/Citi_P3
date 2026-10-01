@@ -32,6 +32,27 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parent.parent
 
 
+def _quiet_post_shutdown_ssl_errors(loop: asyncio.AbstractEventLoop, context: dict) -> None:
+    """Swallow the benign SSL-transport teardown race that fires after this
+    script's real work is already done.
+
+    litellm's aiohttp-backed client keeps its SSL connection's low-level
+    teardown (a final TLS close_notify write) scheduled for later rather than
+    finishing it synchronously inside close()/aclose() — even litellm's own
+    __del__ handling treats this as an expected, unavoidable race (see
+    AsyncHTTPHandler._aiohttp_session_bound_elsewhere in the litellm package).
+    When that scheduled write finally runs, the loop this script used has
+    already closed, so the write fails with "Bad file descriptor" and the
+    loop's own cleanup of that failure then hits "Event loop is closed" —
+    both harmless, both after the real result has already printed.
+    """
+    exc = context.get("exception")
+    message = context.get("message", "")
+    if isinstance(exc, (OSError, RuntimeError)) or "SSL transport" in message:
+        return
+    loop.default_exception_handler(context)
+
+
 async def main():
     load_dotenv()
     ap = argparse.ArgumentParser()
@@ -102,4 +123,10 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.set_exception_handler(_quiet_post_shutdown_ssl_errors)
+    try:
+        loop.run_until_complete(main())
+    finally:
+        loop.close()

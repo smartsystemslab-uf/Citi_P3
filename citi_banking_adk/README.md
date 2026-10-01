@@ -4,14 +4,31 @@ Google ADK implementation of the uploaded banking architecture document.
 
 ## Included workflows
 
-- Root user proxy for front office, mid office, and back office routing
+- Root user proxy for front office, mid office, back office, and AML office routing
 - Front office transaction monitoring, fraud, compliance, decision, manual review
 - Front office customer chatbot, knowledge retrieval, service handling, transaction execution
 - Mid office operations analysis, forecasting, scheduling, validation, support guidance
 - Mid office representative assist with financial data, product recommendation, loan guidance, and risk compliance
 - Back office validation checkpoint, EOD processing, ledger update, reconciliation, report writing, exception handling
+- AML office investigation and Suspicious Activity Report (SAR) drafting
 
 Every business-role agent is an ADK `LlmAgent` wired to your supplied model target through `LiteLlm`. The tool layer is used only for grounded systems such as the local banking API, policy store, schedule persistence, and ledger/report records.
+
+## AML office
+
+The AML office investigates a customer on request and, when the findings are serious enough, drafts a formal Suspicious Activity Report — without a human needing to decide whether to escalate.
+
+- **`aml_investigator`** analyzes the requested customer using real detection tools against the SQLite-backed banking data: `detect_structuring` (sliding-window detection of deposits split to stay under the $10,000 reporting threshold), `find_mule_rings_for_customer` (graph-cycle detection over a customer's transaction flows, via `networkx`), `check_threshold_anomaly`, `verify_identity_document` (fuzzy name/DOB/ID matching), plus `get_customer_context` and `list_recent_transactions`. It returns a risk score (0-100) and structured case facts.
+- **`sar_drafting_agent`** only runs when the investigation is serious enough — `risk_score >= 50` or the investigation status contains "suspicious" — and drafts the SAR narrative from the investigator's findings. It has no tools of its own; it can only work from facts the investigator already established, and its instruction explicitly forbids inventing missing case facts.
+- A real structuring finding also creates a persisted `aml_alerts` record and automatically opens a manual review case (`repository.py`'s `create_aml_alert` / `submit_manual_review`) — not just a response, an actual compliance artifact.
+
+This whole flow runs under the same Zero Trust enforcement as every other office — every agent handoff and every tool call is individually authorized by the Backplane's PDP before it's allowed to proceed (see `Citi_P3_Zero_Trust_Backplane/`).
+
+Example:
+
+```bash
+python run_cli.py --zero-trust --message "investigate CUST-001 for potential structuring"
+```
 
 ## Structure
 
@@ -34,11 +51,11 @@ citi_banking_adk/
 
 ## Setup
 
-```bash
+```powershell
 python -m venv .venv
-source .venv/bin/activate
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-cp .env.example .env
+Copy-Item .env.example .env
 ```
 
 Fill `.env` with your real key:
