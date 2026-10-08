@@ -1,6 +1,7 @@
 import argparse
 import builtins
 import asyncio
+from email.mime import message
 import json
 import runpy
 import sys
@@ -17,8 +18,9 @@ import test_backend_connection
 
 @pytest.mark.asyncio
 async def test_run_cli_main(monkeypatch, capsys):
-    async def fake_run(message, compact):
+    async def fake_run(message, compact, zero_trust_config=None, include_zero_trust_status=False):
         return {"message": message, "compact": compact}
+
 
     monkeypatch.setattr(run_cli, "run_message", fake_run)
     monkeypatch.setattr(sys, "argv", ["run_cli.py", "--message", "hello", "--raw"])

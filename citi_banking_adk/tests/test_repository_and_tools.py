@@ -1,11 +1,12 @@
 import json
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
 
 from bank_adk.infra.api_client import BankingApiError
 from bank_adk.infra.repository import BankingRepository
-from bank_adk.tools import back_office_tools, csr_tools, customer_tools, knowledge_tools, ops_tools
+from bank_adk.tools import aml_tools, back_office_tools, csr_tools, customer_tools, knowledge_tools, ops_tools
 from bank_adk.tools.search import rank_records
 
 
@@ -48,6 +49,95 @@ def test_repository_complete_workflow(repository):
     assert repository.create_exception(batch["batch_id"], "difference")["status"] == "open"
     assert repository.save_report(batch["batch_id"], "done")["status"] == "generated"
     repository.initialize()
+
+
+def _seed_customer_with_deposits(repository, customer_id: str, account_id: str, deposits: list[tuple[float, int]]):
+    with repository.connect() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO customers VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (customer_id, "AML Test User", "medium", "verified", "Analyst", "US", json.dumps({"behavior_notes": ["AML test customer"]}))
+        )
+        conn.execute(
+            "INSERT OR REPLACE INTO accounts VALUES (?, ?, ?, ?, ?, ?)",
+            (account_id, customer_id, "checking", "USD", 0.0, "active")
+        )
+
+    for idx, (amount, day_offset) in enumerate(deposits):
+        created_at = (datetime.now(timezone.utc) - timedelta(days=day_offset)).isoformat()
+        with repository.connect() as conn:
+            conn.execute(
+                "INSERT INTO transactions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    f"TXN-AML-{customer_id}-{idx}",
+                    customer_id,
+                    f"EXT-{idx}",
+                    account_id,
+                    amount,
+                    "USD",
+                    "cash_deposit",
+                    "cash_deposit",
+                    "AML Test Deposit",
+                    "posted",
+                    json.dumps({"deposit_note": "structured deposit test"}),
+                    created_at,
+                )
+            )
+
+
+def test_structuring_detection_positive_case(repository, monkeypatch):
+    monkeypatch.setattr(aml_tools, "repo", repository)
+    monkeypatch.setattr(customer_tools, "repo", repository)
+
+    _seed_customer_with_deposits(
+        repository,
+        "CUST-AML-POS",
+        "CHK-AML-POS",
+        [(9200.0, 0), (9200.0, 1), (9200.0, 2)],
+    )
+
+    result = json.loads(aml_tools.detect_structuring("CUST-AML-POS", window_days=7, threshold_amount=10000, auto_trigger_review=True))
+
+    assert result["structuring_detected"] is True
+    assert result["alert_id"].startswith("ALT-")
+    assert result["manual_review_case_id"].startswith("MR-")
+
+    alert = repository.get_aml_alert(result["alert_id"])
+    assert alert["alert_type"] == "structuring"
+    assert alert["status"] == "open"
+
+
+def test_structuring_detection_single_deposit_not_flagged(repository, monkeypatch):
+    monkeypatch.setattr(aml_tools, "repo", repository)
+    monkeypatch.setattr(customer_tools, "repo", repository)
+
+    _seed_customer_with_deposits(
+        repository,
+        "CUST-AML-NEG1",
+        "CHK-AML-NEG1",
+        [(9200.0, 0)],
+    )
+
+    result = json.loads(aml_tools.detect_structuring("CUST-AML-NEG1", window_days=7, threshold_amount=10000, auto_trigger_review=True))
+
+    assert result["structuring_detected"] is False
+    assert repository.list_aml_alerts("CUST-AML-NEG1") == []
+
+
+def test_structuring_detection_spread_out_deposits_not_flagged(repository, monkeypatch):
+    monkeypatch.setattr(aml_tools, "repo", repository)
+    monkeypatch.setattr(customer_tools, "repo", repository)
+
+    _seed_customer_with_deposits(
+        repository,
+        "CUST-AML-NEG2",
+        "CHK-AML-NEG2",
+        [(9200.0, 0), (9200.0, 15), (9200.0, 30)],
+    )
+
+    result = json.loads(aml_tools.detect_structuring("CUST-AML-NEG2", window_days=7, threshold_amount=10000, auto_trigger_review=True))
+
+    assert result["structuring_detected"] is False
+    assert repository.list_aml_alerts("CUST-AML-NEG2") == []
 
 
 def test_rank_records_scoring_and_fallback():
@@ -145,3 +235,60 @@ def test_external_tool_success_and_fallback(repository, monkeypatch):
     assert json.loads(csr_tools.get_customer_financial_profile("missing"))["error"] == "offline"
     assert "local_results" in json.loads(knowledge_tools.search_policies("AML"))
 
+def test_list_aml_alerts_filters(tmp_path):
+    repository = BankingRepository(tmp_path / "alerts.db")
+    repository.initialize()
+
+    repository.create_aml_alert(
+        customer_id="CUST-001",
+        alert_type="structuring",
+        detection_window_params="7d",
+        cumulative_total=12000.0,
+        threshold=10000.0,
+        raw_payload="{}",
+        status="open",
+    )
+
+    repository.create_aml_alert(
+        customer_id="CUST-002",
+        alert_type="structuring",
+        detection_window_params="7d",
+        cumulative_total=15000.0,
+        threshold=10000.0,
+        raw_payload="{}",
+        status="open",
+    )
+
+    repository.create_aml_alert(
+        customer_id="CUST-001",
+        alert_type="sanctions",
+        detection_window_params="single",
+        cumulative_total=5000.0,
+        threshold=0.0,
+        raw_payload="{}",
+        status="cleared",
+    )
+
+    open_alerts = repository.list_aml_alerts(status="open")
+    assert len(open_alerts) == 2
+
+    customer_alerts = repository.list_aml_alerts(
+        customer_id="CUST-001"
+    )
+    assert len(customer_alerts) == 2
+
+    structuring_alerts = repository.list_aml_alerts(
+        alert_type="structuring"
+    )
+    assert len(structuring_alerts) == 2
+
+    filtered = repository.list_aml_alerts(
+        customer_id="CUST-001",
+        status="open",
+        alert_type="structuring",
+    )
+
+    assert len(filtered) == 1
+    assert filtered[0]["customer_id"] == "CUST-001"
+    assert filtered[0]["status"] == "open"
+    assert filtered[0]["alert_type"] == "structuring"

@@ -111,11 +111,7 @@ If successful, the backend will run at:
 http://127.0.0.1:8000
 ```
 
-<<<<<<< HEAD
 Open the Swagger UI API console in your browser:
-=======
-Then open this on your local computer:
->>>>>>> dd7fa0a41c4bd62e72cc7bf8c3aeb55736d1f52f
 
 ```text
 http://127.0.0.1:8000/docs

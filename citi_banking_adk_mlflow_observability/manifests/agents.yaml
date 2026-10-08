@@ -10,7 +10,7 @@
   risk_tier: high
   pep_type: policy_decision_point
 
-- name: aml_reporter
+- name: sar_drafting_agent
   domain: aml_office
   role: specialist
   risk_tier: high

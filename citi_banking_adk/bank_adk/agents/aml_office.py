@@ -1,0 +1,69 @@
+from google.adk.agents import LlmAgent
+from ..llm import build_model
+from ..callbacks import sanitize_tool_call_names
+from ..tools.aml_tools import (
+    check_threshold_anomaly,
+    detect_structuring,
+    find_mule_rings_for_customer,
+    verify_identity_document,
+)
+from ..tools.customer_tools import get_customer_context, list_recent_transactions
+from .workflow_agents import AmlInvestigationWorkflowAgent
+
+
+def build_aml_office_router() -> LlmAgent:
+    aml_investigator = LlmAgent(
+        after_model_callback=sanitize_tool_call_names,
+        name="aml_investigator",
+        model=build_model(),
+        description="Analyzes customer transactions for structuring, threshold anomalies, mule-ring patterns, and identity verification.",
+        instruction=(
+            "You are an AML Investigator. Use your tools to analyze the requested entity. "
+            "Return a compact JSON string with keys investigation_status, findings, risk_score, "
+            "and case_facts. case_facts must contain names, amounts, dates, and red_flags as arrays. "
+            "risk_score must be an integer from 0 to 100 (0 = no risk, 100 = highest risk) — "
+            "not a 0-1 probability."
+        ),
+        tools=[
+            detect_structuring,
+            verify_identity_document,
+            check_threshold_anomaly,
+            find_mule_rings_for_customer,
+            list_recent_transactions,
+            get_customer_context,
+        ],
+        output_key="aml_investigation_summary",
+    )
+
+    sar_drafting_agent = LlmAgent(
+        after_model_callback=sanitize_tool_call_names,
+        name="sar_drafting_agent",
+        model=build_model(),
+        description="Drafts a Suspicious Activity Report (SAR) based on AML investigation findings.",
+        instruction=(
+            "You are a SAR drafting agent. "
+            "Read the investigation summary from {aml_investigation_summary} "
+            "and the compiled case facts from {aml_sar_case_facts}. "
+            "Use the supplied names, amounts, dates, and red flags when drafting the SAR. "
+            "Do not invent missing case facts. "
+            "Return a compact JSON string with keys sar_required, sar_draft, and next_steps."
+        ),
+        tools=[],
+        output_key="aml_sar_draft",
+    )
+
+    aml_workflow_agent = AmlInvestigationWorkflowAgent(
+        name="aml_investigation_workflow",
+        investigator_agent=aml_investigator,
+        reporter_agent=sar_drafting_agent,
+    )
+
+    return LlmAgent(
+        after_model_callback=sanitize_tool_call_names,
+        name="aml_office_router",
+        model=build_model(),
+        description="Routes compliance, fraud, and suspicious activity requests into the AML investigation workflow.",
+        instruction="Use aml_investigation_workflow for investigations regarding money laundering, sanctions checks, and suspicious transactions.",
+        sub_agents=[aml_workflow_agent],
+        output_key="aml_office_router_result",
+    )

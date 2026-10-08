@@ -5,7 +5,12 @@ from typing import Any, AsyncGenerator, Optional
 from google.adk.agents import Agent, BaseAgent, LlmAgent, ParallelAgent, SequentialAgent
 from google.adk.agents.invocation_context import InvocationContext
 from google.adk.events import Event
-from citi_banking_adk_mlflow_observability.bank_adk.tools.aml_tools import check_threshold_anomaly
+from ..sar_prompt import format_sar_case_facts
+
+from ..tools.aml_tools import check_threshold_anomaly
+
+
+
 
 def _state_get(ctx: InvocationContext, key: str) -> Any:
     return ctx.session.state.get(key)
@@ -264,16 +269,6 @@ class AmlInvestigationWorkflowAgent(BaseAgent):
     investigator_agent: LlmAgent
     reporter_agent: LlmAgent
 
-    aml_investigation_workflow = Agent(
-    name="aml_investigator",
-    description="Specialist step: Reviews baseline profiles and checks for threshold anomalies.",
-    tools=[
-        # ... your other tools (e.g., fetch_transaction_history) ...,
-        check_threshold_anomaly
-    ]
-)
-    model_config = {"arbitrary_types_allowed": True}
-
     def __init__(
         self,
         name: str,
@@ -301,6 +296,12 @@ class AmlInvestigationWorkflowAgent(BaseAgent):
             
         # Step 2: Extract investigator output from session state
         investigation = _extract_json(_state_get(ctx, "aml_investigation_summary"))
+        
+        case_facts = investigation.get("case_facts", {})
+
+        ctx.session.state["aml_sar_case_facts"] = format_sar_case_facts(
+            case_facts
+        )
         
         # Step 3: Conditionally run the reporter agent based on findings
         risk_score = investigation.get("risk_score", 0)

@@ -15,6 +15,8 @@ IMPORTANT_RESULT_KEYS = {
     "mid_office_representative_result",
     "bo_report_output",
     "bo_exception_output",
+    "aml_investigation_summary",
+    "aml_sar_draft",
 }
 
 TOOL_RESULT_WHITELIST = {
