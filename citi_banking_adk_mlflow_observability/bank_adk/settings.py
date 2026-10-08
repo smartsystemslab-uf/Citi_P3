@@ -18,6 +18,8 @@ class Settings:
     base_url: str = os.getenv("UF_NAVIGATOR_BASE_URL", "https://api.ai.it.ufl.edu")
     model_name: str = os.getenv("UF_NAVIGATOR_MODEL", "gpt-oss-20b")
 
+    backend_base_url: str = os.getenv("BANKING_ADK_BACKEND_URL", "http://localhost:8000")
+
     mlflow_enable_tracing: bool = os.getenv("MLFLOW_ENABLE_TRACING", "false").strip().lower() in {"1", "true", "yes", "on"}
     mlflow_tracking_uri: str = os.getenv("MLFLOW_TRACKING_URI", "http://127.0.0.1:5000")
     mlflow_experiment_name: str = os.getenv("MLFLOW_EXPERIMENT_NAME", "citi-banking-adk")

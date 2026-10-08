@@ -36,21 +36,10 @@ async def main():
     args = ap.parse_args()
     selected = SCENARIOS if args.scenario == 'all' else {args.scenario: SCENARIOS[args.scenario]}
     
-    # 1. Define how to launch your MCP server as a subprocess
-    # This replaces the URL logic.
-    # TODO: Implement different launch logic based on scenario type (front/mid/back) if needed, e.g. different server scripts or env vars.
-    '''mode_map = {
-        "front": "front",
-        "mid": "mid",
-        "back": "back",
-    }
-
-    current_mode = "all"
-    for key in mode_map:
-        if args.scenario.startswith(key):
-            current_mode = mode_map[key]
-            '''
-
+    # The MCP server is a single unified process that exposes tools for all
+    # office types (front/mid/back); scenarios select which tools/workflows to
+    # exercise, not which server process to launch, so no per-scenario launch
+    # branching is needed here.
     server_params = StdioServerParameters(
         command=sys.executable,
         args=[str(Path(__file__).resolve().parents[1] / "citi_banking_mcp_server" / "mcp_server.py")],

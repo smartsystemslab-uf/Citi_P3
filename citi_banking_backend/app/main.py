@@ -5,10 +5,13 @@ from datetime import date, datetime, time, timedelta
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 from fastapi import Depends, FastAPI, HTTPException, Query, APIRouter, Depends
-from .database import get_db, refresh_customer_baselines
-from .models import Account, AuditLog, Customer, Policy, Rule, Transaction
+from .database import (
+    get_db, refresh_customer_baselines, get_shared_attribute_accounts,
+    flag_device_sharing_rings, feed_aml_alerts,
+)
+from .models import Account, AuditLog, AMLAlert, CustomerRiskProfile, Customer, Policy, Rule, Transaction
 from .schemas import (
-    AccountCreate, AccountOut, CustomerCreate, CustomerOut, PolicyCreate, PolicyOut,
+    AccountCreate, AccountOut, AMLAlertCreateRequest, AMLAlertsFeedRequest, CustomerCreate, CustomerOut, PolicyCreate, PolicyOut,
     RuleCreate, RuleOut, RiskDecision, TransactionEvaluateRequest, TransactionOut,
     LedgerCorrectionRequest, StaffingAdjustmentRequest, TransferRequest,
     TransactionStatusUpdate,
@@ -369,3 +372,51 @@ def resolve_ledger_entry(
 def trigger_baseline_refresh(db: Session = Depends(get_db)):
     updated_profiles = refresh_customer_baselines(db)
     return {"status": "success", "profiles_refreshed": updated_profiles}
+
+@app.get("/aml/shared-attributes/{account_id}")
+def aml_shared_attributes(account_id: str, db: Session = Depends(get_db)):
+    adjacency_list = get_shared_attribute_accounts(db, account_id)
+    return {"status": "success", "data": adjacency_list}
+
+@app.get("/aml/device-sharing-hotspots")
+def aml_device_sharing_hotspots(hours: int = 24, threshold: int = 3, db: Session = Depends(get_db)):
+    hotspots = flag_device_sharing_rings(db, hours=hours, threshold=threshold)
+    return {"status": "success", "data": hotspots}
+
+@app.post("/aml/alerts/feed")
+def aml_alerts_feed(payload: AMLAlertsFeedRequest, db: Session = Depends(get_db)):
+    feed_aml_alerts(db, payload.mule_rings, payload.device_hotspots)
+    return {
+        "status": "success",
+        "mule_rings_fed": len(payload.mule_rings),
+        "device_hotspots_fed": len(payload.device_hotspots),
+    }
+
+@app.post("/aml/alerts")
+def aml_create_alert(payload: AMLAlertCreateRequest, db: Session = Depends(get_db)):
+    alert = AMLAlert(
+        alert_type=payload.alert_type,
+        entity_id=payload.entity_id,
+        description=payload.description,
+        status=payload.status,
+    )
+    db.add(alert)
+    db.commit()
+    db.refresh(alert)
+    return {"status": "success", "id": alert.id}
+
+@app.get("/aml/profiles/{account_id}")
+def aml_get_profile(account_id: str, db: Session = Depends(get_db)):
+    profile = db.query(CustomerRiskProfile).filter_by(account_id=account_id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="profile not found")
+    return {
+        "status": "success",
+        "data": {
+            "account_id": profile.account_id,
+            "avg_weekly_volume": profile.avg_weekly_volume,
+            "peak_transfer_amount": profile.peak_transfer_amount,
+            "top_mccs": json.loads(profile.top_mccs),
+            "last_updated": profile.last_updated.isoformat(),
+        },
+    }

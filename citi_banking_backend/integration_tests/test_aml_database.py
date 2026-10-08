@@ -180,3 +180,102 @@ def test_task6_strict_anomaly_thresholding(db):
     outlier_alert = db.query(AMLAlert).filter_by(entity_id="TX_OUTLIER").first()
     assert outlier_alert is not None
     assert outlier_alert.status == "review"
+
+
+def test_aml_shared_attributes_endpoint(db):
+    """GET /aml/shared-attributes/{account_id} exposes get_shared_attribute_accounts over HTTP."""
+    app.dependency_overrides[get_db] = lambda: db
+
+    db.add(Transaction(transaction_id=str(uuid.uuid4()), from_account_id="TARGET", to_account_id="DEST", amount=10, device_id="SHARED_DEVICE"))
+    db.add(Transaction(transaction_id=str(uuid.uuid4()), from_account_id="LINKED", to_account_id="DEST", amount=10, device_id="SHARED_DEVICE"))
+    db.commit()
+
+    response = client.get("/aml/shared-attributes/TARGET")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "success"
+    assert "LINKED" in body["data"]["SHARED_DEVICE"]
+
+    app.dependency_overrides.clear()
+
+
+def test_aml_device_sharing_hotspots_endpoint(db):
+    """GET /aml/device-sharing-hotspots exposes flag_device_sharing_rings over HTTP."""
+    app.dependency_overrides[get_db] = lambda: db
+
+    for i in range(4):
+        db.add(Transaction(transaction_id=str(uuid.uuid4()), from_account_id=f"HUB_ACC_{i}", to_account_id="DEST", amount=10, device_id="HUB_DEVICE"))
+    db.commit()
+
+    response = client.get("/aml/device-sharing-hotspots", params={"hours": 24, "threshold": 3})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "success"
+    assert any(row["device_id"] == "HUB_DEVICE" for row in body["data"])
+
+    app.dependency_overrides.clear()
+
+
+def test_aml_alerts_feed_endpoint(db):
+    """POST /aml/alerts/feed exposes feed_aml_alerts over HTTP and persists aml_alerts rows."""
+    app.dependency_overrides[get_db] = lambda: db
+
+    payload = {
+        "mule_rings": [["ACC_A", "ACC_B", "ACC_C"]],
+        "device_hotspots": [{"device_id": "HUB_DEVICE", "account_count": 4}],
+    }
+    response = client.post("/aml/alerts/feed", json=payload)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "success"
+    assert body["mule_rings_fed"] == 1
+    assert body["device_hotspots_fed"] == 1
+
+    mule_alert = db.query(AMLAlert).filter_by(alert_type="mule_ring").first()
+    device_alert = db.query(AMLAlert).filter_by(alert_type="device_sharing").first()
+    assert mule_alert is not None
+    assert device_alert is not None
+
+    app.dependency_overrides.clear()
+
+
+def test_aml_create_alert_endpoint(db):
+    """POST /aml/alerts creates a single generic aml_alerts row (used by anomaly checks)."""
+    app.dependency_overrides[get_db] = lambda: db
+
+    payload = {
+        "alert_type": "baseline_deviation",
+        "entity_id": "TX_OUTLIER",
+        "description": "Amount 600.0 exceeds 5x historical peak of 100.0",
+        "status": "review",
+    }
+    response = client.post("/aml/alerts", json=payload)
+    assert response.status_code == 200
+    assert response.json()["status"] == "success"
+
+    alert = db.query(AMLAlert).filter_by(entity_id="TX_OUTLIER").first()
+    assert alert is not None
+    assert alert.alert_type == "baseline_deviation"
+    assert alert.status == "review"
+
+    app.dependency_overrides.clear()
+
+
+def test_aml_get_profile_endpoint(db):
+    """GET /aml/profiles/{account_id} exposes a computed CustomerRiskProfile over HTTP."""
+    app.dependency_overrides[get_db] = lambda: db
+
+    db.add(CustomerRiskProfile(account_id="ACC_PROFILE", avg_weekly_volume=250.0, peak_transfer_amount=900.0, top_mccs=json.dumps(["5411", "5812"])))
+    db.commit()
+
+    response = client.get("/aml/profiles/ACC_PROFILE")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "success"
+    assert body["data"]["peak_transfer_amount"] == 900.0
+    assert "5411" in body["data"]["top_mccs"]
+
+    missing_response = client.get("/aml/profiles/NO_SUCH_ACCOUNT")
+    assert missing_response.status_code == 404
+
+    app.dependency_overrides.clear()

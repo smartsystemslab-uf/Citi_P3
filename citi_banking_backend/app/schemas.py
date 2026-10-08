@@ -108,6 +108,16 @@ class StaffingAdjustmentRequest(BaseModel):
     staff_count: int = Field(alias="count", gt=0)
 
 
+class AMLAlertsFeedRequest(BaseModel):
+    mule_rings: list[list[str]] = Field(default_factory=list)
+    device_hotspots: list[dict] = Field(default_factory=list)
+
+class AMLAlertCreateRequest(BaseModel):
+    alert_type: str
+    entity_id: str
+    description: str
+    status: str = "open"
+
 class LedgerCorrectionRequest(BaseModel):
     correction_amount: float
     note: str = Field(min_length=1)
