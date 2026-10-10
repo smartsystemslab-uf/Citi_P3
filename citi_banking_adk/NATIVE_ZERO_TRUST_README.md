@@ -55,7 +55,7 @@ python -m pip install -r requirements.txt   # or however this project's deps are
 Two things are easy to miss:
 
 - **No `pip install` of the Backplane packages is needed in this venv.**
-  The plugin injects the Backplane's `zero_trust_task3/4/5` and
+  The runtime injects the Backplane's Task 3/4/5/6 and
   `interface_standard` `src/` directories straight onto `sys.path` at
   runtime (see Part 2.4). What *is* required is that this venv already has
   the raw libraries those packages import — `cryptography`, `httpx`,
@@ -71,13 +71,85 @@ Two things are easy to miss:
   `run_cli.py` or `verify_native_zero_trust_e2e.py` (for a mocked-plugin
   unit-test mode, see `tests_native_zt/` instead).
 
+#### AUTHN-3: configure agent signing and the registry trust anchor
+
+Use a Backplane checkout with `zero_trust_task6_agent_identity` and the
+AUTHN-3 `NativeMasBackplane.begin_tool(..., signed_identity_request=...)`
+contract. The older nested Backplane checkout does not supply this contract.
+Set `--zt-backplane-root` or `CITI_ZT_BACKPLANE_ROOT` to the updated checkout.
+
+Provision agent keys and a root-signed registry as documented in that
+checkout's `zero_trust_task6_agent_identity/README.md`. The plugin does not
+generate keys or trust the unsigned `public_keys.yaml` export. Independently
+provision the registry root **public** PEM and expected root key ID; the
+runtime needs no registry root private key.
+
+Create an operator-managed JSON file outside tracked source, for example
+`C:/secure/citi/agent-keys.json`:
+
+```json
+{
+  "knowledge_base_agent": "keys/knowledge_base_agent.key",
+  "transaction_processing_agent": "keys/transaction_processing_agent.key"
+}
+```
+
+Map every agent that needs business-tool access to its own registered key.
+Relative key paths are resolved against the JSON file's directory. Private
+keys use Task 6's Base64-encoded raw Ed25519 format. Protect the JSON mapping
+and private-key files with operating-system access controls; possession of
+this process's keys permits signing as those agents. This in-process
+integration does not isolate malicious Python code running in the same
+process.
+
+The plugin snapshots the configured mapping and binds it to the actual
+agent objects in the application tree. It accepts the current ADK runtime
+agent only when that object is the registered object with the same name.
+Tool arguments, session state, user messages, and a standalone asserted
+`agent_name` do not select the signing identity or key path. Configure the
+CLI and environment as trusted operator input; do not expose these options
+as arbitrary request parameters in a service wrapper.
+
+```powershell
+$env:CITI_ZT_AGENT_KEY_MAP = 'C:/secure/citi/agent-keys.json'
+$env:CITI_ZT_IDENTITY_REGISTRY = 'C:/secure/citi/registry.yaml'
+$env:CITI_ZT_IDENTITY_REGISTRY_ROOT_PUBLIC_KEY = 'C:/secure/citi/registry-root-public.pem'
+$env:CITI_ZT_IDENTITY_REGISTRY_ROOT_KEY_ID = 'registry-root-v1'
+```
+
+These are path/identifier settings, never private-key contents. Equivalent
+CLI switches are listed below. Explicit arguments override environment
+defaults. Programmatic entrypoints use the same fields on
+`ZeroTrustConfig.build(...)`; existing verification and benchmark scripts
+that call it can use these environment settings without new script flags.
+The three registry settings must be configured together. Missing signing
+keys or verifier configuration deny tool calls; invalid trust-anchor or
+mapping configuration may stop startup. Authentication failures remain
+blocked in shadow mode, including with `--zt-shadow-allow-critical`.
+`transfer_to_agent` retains its existing agent-route authorization path.
+
+Run the caller regressions offline from `citi_banking_adk` with `pytest` and
+the Task 6 dependencies installed in the active Python environment:
+
+```powershell
+$authnBackplane = 'D:/Lab/Citi_P3_Zero_Trust_Backplane'
+$env:PYTHONPATH = "$authnBackplane;$authnBackplane/zero_trust_task6_agent_identity/src"
+python -m pytest tests_native_zt -q
+python -m pytest "$authnBackplane/native_mas_runtime/tests" -q
+```
+
+Adjust the checkout path for your machine. Installing the Task 6 package
+in that environment is an alternative to adding its `src` directory. Tests
+use throwaway keys and registries; no production credentials or model
+requests are needed.
+
 ### 1.3 Run a protected message through the real MAS
 
 ```powershell
 python run_cli.py --message "What is the bank's policy on a lost debit card?"
 ```
 
-That's it — **Zero Trust is on by default.** No flag needed. This sends the
+With the identity configuration above, **Zero Trust is on by default.** This sends the
 message through the real `google.adk` `App`/`Runner`, lets the real LLM
 decide which agents and tools to invoke, and the native plugin authorizes
 every hop.
@@ -97,12 +169,16 @@ python run_cli.py --message "..." --zt-status
 | `--zero-trust` / `--no-zero-trust` | **on** | Enforcement is on unless you explicitly pass `--no-zero-trust`. Use the opt-out only for local debugging/comparison — never in anything resembling production. |
 | `--zt-backplane-root PATH` | sibling dir | Where to find `Citi_P3_Zero_Trust_Backplane`. |
 | `--zt-output PATH` | `<backplane>/native_mas_runtime/output` | Where generated artifacts and the audit log land. |
-| `--zt-mode {enforce,shadow}` | `enforce` | `enforce` blocks denied actions for real. `shadow` records what *would* happen without blocking (see 2.7). |
+| `--zt-agent-key-map PATH` | `CITI_ZT_AGENT_KEY_MAP` | Operator-managed JSON binding application agent names to private-key paths. |
+| `--zt-identity-registry PATH` | `CITI_ZT_IDENTITY_REGISTRY` | Root-signed Task 6 registry YAML. |
+| `--zt-identity-registry-root-public-key PATH` | `CITI_ZT_IDENTITY_REGISTRY_ROOT_PUBLIC_KEY` | Independently provisioned root public PEM. |
+| `--zt-identity-registry-root-key-id ID` | `CITI_ZT_IDENTITY_REGISTRY_ROOT_KEY_ID` | Pinned registry root key ID. |
+| `--zt-mode {enforce,shadow}` | `enforce` | `enforce` blocks denied actions for real. `shadow` may permit policy denials, but always blocks authentication failures (see 2.7). |
 | `--zt-refresh` | off | Force Task 2 to re-scan `Citi_P3`'s source tree and regenerate the Task 1-5 artifacts before this run, instead of reusing the cached scan. Use after changing agent/tool code. |
 | `--zt-human-approval` | off | Supplies a signed human-approval assertion for critical operations. |
 | `--zt-secondary-authorization` | off | Supplies an independent second authorizer's assertion. |
 | `--zt-change-ticket ID` | none | Satisfies the `require_change_ticket` obligation some critical-write policies attach. |
-| `--zt-shadow-allow-critical` | off | In shadow mode only, also simulate allowing critical writes that enforce mode would block. |
+| `--zt-shadow-allow-critical` | off | In shadow mode only, allow critical writes denied by policy. Authentication failures still block execution. |
 | `--zt-status` | off | Wrap the result with `trace_id` / `workflow_instance_id` / `audit_path` / `policy_version` metadata. |
 | `--raw` | off | Print the full raw ADK debug event stream instead of the compact trace. |
 
@@ -396,13 +472,16 @@ wrong in isolated component tests — this is exactly why the mocked
 `before_agent_callback`/`before_tool_callback` substitute denial content in
 place of the real call.
 
-`--zt-mode shadow`: `should_execute()` lets the action proceed even when the
-authorization would have denied it (unless it's a critical write and
+`--zt-mode shadow`: after tool identity authentication succeeds,
+`should_execute()` may let an action proceed when policy authorization
+would have denied it (unless it's a critical write and
 `--zt-shadow-allow-critical` was not also passed — critical writes still
 fail closed even in shadow mode, by default). Every decision is still
 computed and audited (`would_block: true/false` in the audit trail), so
 shadow mode is how you'd measure "what would Zero Trust have blocked if it
 were fully turned on" against real traffic before flipping to enforce.
+Missing, invalid, replayed, or otherwise rejected tool identity requests
+always block execution, regardless of the critical-write override.
 
 ### 2.8 Task 4: the decision, not just allow/deny
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import importlib.util
 import json
 import sys
@@ -9,6 +10,8 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 
 class _FakePart:
@@ -58,6 +61,7 @@ class _FakeEngine:
         self.deny_tools: set[str] = set()
         self.deny_output = False
         self.closed = False
+        self.signed_requests = []
         self.__class__.instances.append(self)
 
     def find_input_placement(self):
@@ -129,7 +133,9 @@ class _FakeEngine:
         idempotency_key,
         caller_runtime_id,
         tool_name,
+        signed_identity_request,
     ):
+        self.signed_requests.append(signed_identity_request)
         self.calls.append(
             (
                 "begin_tool",
@@ -204,10 +210,11 @@ class _Agent:
 
 
 class _Ctx:
-    def __init__(self, invocation_id="inv-1", *, agent_name="", function_call_id=""):
+    def __init__(self, invocation_id="inv-1", *, agent_name="", function_call_id="", agent=None):
         self.invocation_id = invocation_id
         self.agent_name = agent_name
         self.function_call_id = function_call_id
+        self._invocation_context = SimpleNamespace(agent=agent)
 
 
 class _Tool:
@@ -223,12 +230,24 @@ def native_plugin(tmp_path, monkeypatch):
     (bp / "native_mas_runtime").mkdir(parents=True)
     mas = tmp_path / "mas"
     mas.mkdir()
+    key = Ed25519PrivateKey.generate()
+    key_path = tmp_path / "agent.key"
+    key_path.write_text(base64.b64encode(key.private_bytes(
+        serialization.Encoding.Raw, serialization.PrivateFormat.Raw,
+        serialization.NoEncryption(),
+    )).decode("ascii"), encoding="utf-8")
+    key_map = tmp_path / "agent-keys.json"
+    key_map.write_text(json.dumps({"transaction_processing_agent": "agent.key"}), encoding="utf-8")
     config = config_mod.ZeroTrustConfig.build(
         enabled=True,
         backplane_root=bp,
         mas_repo_root=mas,
         output_dir=tmp_path / "out",
         mode="enforce",
+        agent_key_map_path=key_map,
+        identity_registry_path=tmp_path / "registry.yaml",
+        identity_registry_root_public_key_path=tmp_path / "root.pem",
+        identity_registry_root_key_id="test-root",
     )
     leaf = _Agent("transaction_processing_agent")
     workflow = _Agent("customer_service_chatbot_workflow", [leaf])
@@ -280,7 +299,8 @@ def test_actual_agent_execution_hits_route_pep(native_plugin):
 def test_denied_real_tool_call_is_short_circuited(native_plugin):
     plugin, engine, _ = native_plugin
     engine.deny_tools.add("execute_transfer")
-    context = _Ctx(agent_name="transaction_processing_agent", function_call_id="fc-1")
+    context = _Ctx(agent_name="transaction_processing_agent", function_call_id="fc-1",
+                   agent=plugin._agents_by_name["transaction_processing_agent"])
     tool = _Tool("execute_transfer")
     blocked = asyncio.run(
         plugin.before_tool_callback(
@@ -299,7 +319,8 @@ def test_denied_real_tool_call_is_short_circuited(native_plugin):
 
 def test_allowed_tool_is_postprocessed_after_actual_execution(native_plugin):
     plugin, engine, _ = native_plugin
-    context = _Ctx(agent_name="transaction_processing_agent", function_call_id="fc-2")
+    context = _Ctx(agent_name="transaction_processing_agent", function_call_id="fc-2",
+                   agent=plugin._agents_by_name["transaction_processing_agent"])
     tool = _Tool("get_transaction_context")
     assert asyncio.run(
         plugin.before_tool_callback(
@@ -378,7 +399,8 @@ def test_transfer_to_agent_is_authorized_as_agent_route_not_generic_tool(native_
 
 def test_tool_error_aborts_task5_reservation(native_plugin):
     plugin, engine, _ = native_plugin
-    context = _Ctx(agent_name="transaction_processing_agent", function_call_id="fc-3")
+    context = _Ctx(agent_name="transaction_processing_agent", function_call_id="fc-3",
+                   agent=plugin._agents_by_name["transaction_processing_agent"])
     tool = _Tool("get_transaction_context")
     asyncio.run(
         plugin.before_tool_callback(
@@ -397,3 +419,127 @@ def test_tool_error_aborts_task5_reservation(native_plugin):
     )
     assert any(call[0] == "abort_tool" for call in engine.calls)
     assert any(event[0] == "TOOL_EXECUTION_ERROR" for event in engine.events)
+
+
+def _context_for(plugin, *, call_id="signed-call"):
+    name = "transaction_processing_agent"
+    return _Ctx(agent_name=name, function_call_id=call_id, agent=plugin._agents_by_name[name])
+
+
+def _call_tool(plugin, context, args=None):
+    return asyncio.run(plugin.before_tool_callback(
+        tool=_Tool("get_transaction_context"), tool_args=args or {}, tool_context=context,
+    ))
+
+
+def test_signs_runtime_identity_and_actual_target_with_fresh_nonce(native_plugin):
+    from zt_task6.payload_format import canonical_request_payload
+    from zt_task6.signing import load_private_key
+
+    plugin, engine, _ = native_plugin
+    # Neither caller assertions nor requested key paths are signing authority.
+    args = {"agent_name": "admin", "caller_runtime_id": "admin",
+            "private_key_path": "attacker.key", "target_tool": "execute_transfer"}
+    assert _call_tool(plugin, _context_for(plugin), args) is None
+    assert _call_tool(plugin, _context_for(plugin, call_id="second-call"), args) is None
+    first, second = engine.signed_requests
+    assert first["caller_runtime_id"] == "transaction_processing_agent"
+    assert first["target_tool"] == "get_transaction_context"
+    assert first["nonce"] != second["nonce"]
+    public = load_private_key(plugin._agent_key_paths["transaction_processing_agent"]).public_key()
+    public.verify(base64.b64decode(first["signature"]), canonical_request_payload({
+        name: first[name] for name in ("caller_runtime_id", "target_tool", "timestamp", "nonce")
+    }))
+    assert engine.kwargs["identity_registry_path"] == plugin.config.identity_registry_path
+    assert engine.kwargs["identity_registry_root_public_key_path"] == plugin.config.identity_registry_root_public_key_path
+    assert engine.kwargs["identity_registry_root_key_id"] == "test-root"
+
+
+@pytest.mark.parametrize("mode", ["enforce", "shadow"])
+@pytest.mark.parametrize("failure", ["missing_binding", "missing_file", "malformed_key", "unreadable_key"])
+def test_signing_failures_stop_before_backplane(native_plugin, monkeypatch, mode, failure):
+    plugin, engine, _ = native_plugin
+    engine.kwargs["mode"] = mode
+    key = plugin._agent_key_paths["transaction_processing_agent"]
+    if failure == "missing_binding":
+        plugin._agent_key_paths.clear()
+    elif failure == "missing_file":
+        key.unlink()
+    elif failure == "malformed_key":
+        key.write_text("malformed-key", encoding="utf-8")
+    else:
+        def unavailable(**kwargs):
+            raise PermissionError("private key path must not leak")
+        monkeypatch.setattr(plugin, "_sign_request", unavailable)
+    blocked = _call_tool(plugin, _context_for(plugin))
+    assert blocked["reason"] == "IDENTITY_VERIFICATION_FAILED"
+    assert not any(call[0] == "begin_tool" for call in engine.calls)
+    assert not plugin._states["inv-1"].pending_tools
+    assert engine.events[-1][0] == "IDENTITY_VERIFICATION_FAILED"
+    assert "private key path must not leak" not in str(engine.events)
+
+
+@pytest.mark.parametrize("failure", ["name_only", "different_object", "different_name", "unknown_agent"])
+def test_untrusted_agent_context_cannot_select_a_signing_key(native_plugin, monkeypatch, failure):
+    plugin, engine, _ = native_plugin
+    context = _context_for(plugin)
+    if failure == "name_only":
+        context._invocation_context = None
+    elif failure == "different_object":
+        context._invocation_context.agent = _Agent(context.agent_name)
+    elif failure == "different_name":
+        context.agent_name = "user_proxy_agent"
+    else:
+        context.agent_name = "attacker"
+        context._invocation_context.agent = _Agent("attacker")
+    def must_not_sign(**kwargs):
+        pytest.fail("An untrusted context reached the signer")
+    monkeypatch.setattr(plugin, "_sign_request", must_not_sign)
+    blocked = _call_tool(plugin, context)
+    assert blocked["reason"] == "IDENTITY_VERIFICATION_FAILED"
+    assert not engine.signed_requests
+
+
+def test_backplane_identity_denial_cannot_be_relaxed_by_shadow(native_plugin, monkeypatch):
+    plugin, engine, _ = native_plugin
+    engine.kwargs.update(mode="shadow", shadow_allow_critical=True)
+    monkeypatch.setattr(engine, "begin_tool", lambda *args, **kwargs: _FakePending(
+        _FakeAuth(False, "IDENTITY_VERIFICATION_FAILED")))
+    # This fake retains the legacy engine's permissive shadow behavior.
+    assert engine.should_execute(_FakeAuth(False), critical=False)
+    assert _call_tool(plugin, _context_for(plugin))["reason"] == "IDENTITY_VERIFICATION_FAILED"
+    assert not plugin._states["inv-1"].pending_tools
+
+
+def test_ordinary_policy_denial_still_observes_shadow_mode(native_plugin):
+    plugin, engine, _ = native_plugin
+    engine.kwargs["mode"] = "shadow"
+    engine.deny_tools.add("get_transaction_context")
+    assert _call_tool(plugin, _context_for(plugin)) is None
+
+
+@pytest.mark.parametrize("contents", [
+    '[]', '{"unknown": "agent.key"}',
+    '{"transaction_processing_agent": "a", "transaction_processing_agent": "b"}',
+    '{"transaction_processing_agent": " "}', '{"transaction_processing_agent": null}',
+])
+def test_rejects_invalid_operator_key_maps(native_plugin, tmp_path, contents):
+    plugin, _, _ = native_plugin
+    path = tmp_path / "invalid-map.json"
+    path.write_text(contents, encoding="utf-8")
+    with pytest.raises(ValueError):
+        plugin._load_agent_key_paths(path)
+
+
+def test_key_map_paths_are_relative_to_map_and_snapshotted(native_plugin):
+    plugin, _, _ = native_plugin
+    path = plugin.config.agent_key_map_path
+    assert plugin._agent_key_paths["transaction_processing_agent"] == path.parent / "agent.key"
+    path.write_text('{"transaction_processing_agent": "replacement.key"}', encoding="utf-8")
+    assert _call_tool(plugin, _context_for(plugin)) is None
+
+
+def test_duplicate_runtime_agent_names_are_rejected(native_plugin):
+    plugin, _, _ = native_plugin
+    with pytest.raises(ValueError, match="Duplicate runtime agent name"):
+        plugin._index_agent_tree(_Agent("transaction_processing_agent"))

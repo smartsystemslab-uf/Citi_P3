@@ -81,6 +81,10 @@ async def main():
     )
     ap.add_argument("--zt-backplane-root", default=None, help="Path to Citi_P3_Zero_Trust_Backplane.")
     ap.add_argument("--zt-output", default=None, help="Directory for native Zero Trust runtime artifacts/audit.")
+    ap.add_argument("--zt-agent-key-map", default=None, help="Operator-managed JSON mapping ADK agent names to private-key paths (or CITI_ZT_AGENT_KEY_MAP).")
+    ap.add_argument("--zt-identity-registry", default=None, help="Root-signed Task 6 identity registry YAML (or CITI_ZT_IDENTITY_REGISTRY).")
+    ap.add_argument("--zt-identity-registry-root-public-key", default=None, help="Independently provisioned registry root public PEM (or CITI_ZT_IDENTITY_REGISTRY_ROOT_PUBLIC_KEY).")
+    ap.add_argument("--zt-identity-registry-root-key-id", default=None, help="Pinned registry root key ID (or CITI_ZT_IDENTITY_REGISTRY_ROOT_KEY_ID).")
     ap.add_argument("--zt-mode", choices=["enforce", "shadow"], default="enforce")
     ap.add_argument("--zt-refresh", action="store_true", help="Rescan/regenerate Task 2-5 runtime artifacts before this run.")
     ap.add_argument("--zt-human-approval", action="store_true", help="Supply a validated human-approval assertion to critical operations.")
@@ -111,6 +115,10 @@ async def main():
             secondary_authorization=args.zt_secondary_authorization,
             change_ticket=args.zt_change_ticket,
             shadow_allow_critical=args.zt_shadow_allow_critical,
+            agent_key_map_path=args.zt_agent_key_map,
+            identity_registry_path=args.zt_identity_registry,
+            identity_registry_root_public_key_path=args.zt_identity_registry_root_public_key,
+            identity_registry_root_key_id=args.zt_identity_registry_root_key_id,
         )
 
     result = await run_message(

@@ -57,7 +57,9 @@ class ZeroTrustBackplanePlugin(BasePlugin):
         self.parent_by_agent: dict[str, str] = {}
         self.workflow_by_agent: dict[str, str] = {}
         self.runtime_agent_edges: list[tuple[str, str]] = []
+        self._agents_by_name: dict[str, Any] = {}
         self._index_agent_tree(root_agent)
+        self._agent_key_paths = self._load_agent_key_paths(config.agent_key_map_path)
         self._states: dict[str, InvocationState] = {}
         self._last_trace_summary: dict[str, Any] | None = None
 
@@ -87,7 +89,14 @@ class ZeroTrustBackplanePlugin(BasePlugin):
             change_ticket=config.change_ticket,
             shadow_allow_critical=config.shadow_allow_critical,
             runtime_agent_edges=self.runtime_agent_edges,
+            identity_registry_path=config.identity_registry_path,
+            identity_registry_root_public_key_path=config.identity_registry_root_public_key_path,
+            identity_registry_root_key_id=config.identity_registry_root_key_id,
         )
+        # NativeMasBackplane installs its configured Task 6 source path.
+        from zt_task6.signing import sign_request
+
+        self._sign_request = sign_request
 
     # ---------------------------------------------------------------
     # Real ADK topology
@@ -97,6 +106,9 @@ class ZeroTrustBackplanePlugin(BasePlugin):
             name = str(getattr(agent, "name", "") or "")
             if not name:
                 return
+            if name in self._agents_by_name:
+                raise ValueError(f"Duplicate runtime agent name: {name}")
+            self._agents_by_name[name] = agent
             workflow = _WORKFLOW_BY_AGENT.get(name, inherited_workflow)
             if workflow:
                 self.workflow_by_agent[name] = workflow
@@ -107,6 +119,47 @@ class ZeroTrustBackplanePlugin(BasePlugin):
                 walk(child, name, workflow)
 
         walk(root_agent, None, None)
+
+    def _load_agent_key_paths(self, path: Path | None) -> dict[str, Path]:
+        """Snapshot an operator-owned map, never a path supplied by a tool call."""
+        if path is None:
+            return {}
+
+        def unique_pairs(pairs):
+            result = {}
+            for identity, value in pairs:
+                if identity in result:
+                    raise ValueError("Agent key map contains a duplicate identity")
+                result[identity] = value
+            return result
+
+        path = Path(path).resolve()
+        entries = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique_pairs)
+        if not isinstance(entries, dict):
+            raise ValueError("Agent key map must be a JSON object of runtime names to key paths")
+        result = {}
+        for identity, value in entries.items():
+            if identity not in self._agents_by_name:
+                raise ValueError(f"Agent key map identity is not in the configured agent tree: {identity}")
+            if not isinstance(value, str) or not value.strip() or value != value.strip():
+                raise ValueError("Agent key map paths must be non-empty strings without surrounding whitespace")
+            key_path = Path(value)
+            result[identity] = (key_path if key_path.is_absolute() else path.parent / key_path).resolve()
+        return result
+
+    def _trusted_tool_agent_name(self, tool_context: Any) -> str:
+        # ADK constructs this context from the running agent. Bind to that exact
+        # object, not a caller assertion, session value, or LLM tool argument.
+        context = getattr(tool_context, "_invocation_context", None)
+        agent = getattr(context, "agent", None)
+        name = str(getattr(agent, "name", "") or "")
+        if (
+            not name
+            or self._agents_by_name.get(name) is not agent
+            or getattr(tool_context, "agent_name", None) != name
+        ):
+            raise ValueError("Tool context does not identify a configured runtime agent")
+        return name
 
     @staticmethod
     def _invocation_id(context: Any) -> str:
@@ -288,13 +341,43 @@ class ZeroTrustBackplanePlugin(BasePlugin):
                 agent_name=agent_name, tool_args=tool_args, state=state
             )
 
+        call_key = self._tool_call_key(tool_context, tool_name)
+        try:
+            agent_name = self._trusted_tool_agent_name(tool_context)
+            key_path = self._agent_key_paths.get(agent_name)
+            if key_path is None:
+                raise ValueError("No private key is configured for the runtime agent")
+            signed_identity_request = self._sign_request(
+                caller_runtime_id=agent_name,
+                target_tool=tool_name,
+                private_key_path=key_path,
+            )
+        except (OSError, ValueError) as exc:
+            # Missing/unreadable/malformed keys and untrusted callers are hard
+            # denials even in shadow mode. Do not send an unsigned request.
+            state.pending_tools.pop(call_key, None)
+            self.engine.append_runtime_event(
+                "IDENTITY_VERIFICATION_FAILED",
+                trace_id=state.trace_id,
+                workflow_instance_id=state.workflow_instance_id,
+                caller_runtime_id=agent_name,
+                target_runtime_id=tool_name,
+                reason="Caller identity signing failed",
+                error_type=type(exc).__name__,
+            )
+            return {
+                "status": "zero_trust_denied",
+                "tool": tool_name,
+                "agent": agent_name,
+                "reason": "IDENTITY_VERIFICATION_FAILED",
+                "trace_id": state.trace_id,
+            }
         workflow_id = self._workflow_for(agent_name)
         placement = self.engine.find_tool_placement(
             agent_name,
             tool_name,
             workflow_id=workflow_id,
         )
-        call_key = self._tool_call_key(tool_context, tool_name)
         pending = self.engine.begin_tool(
             placement,
             tool_args=dict(tool_args),
@@ -304,10 +387,14 @@ class ZeroTrustBackplanePlugin(BasePlugin):
             idempotency_key=f"adk:{call_key}",
             caller_runtime_id=agent_name,
             tool_name=tool_name,
+            signed_identity_request=signed_identity_request,
         )
         state.pending_tools[call_key] = pending
         critical = bool(placement and placement.get("critical"))
-        if not self.engine.should_execute(pending.authorization, critical=critical):
+        if (
+            pending.authorization.reason == "IDENTITY_VERIFICATION_FAILED"
+            or not self.engine.should_execute(pending.authorization, critical=critical)
+        ):
             state.pending_tools.pop(call_key, None)
             return {
                 "status": "zero_trust_denied",
