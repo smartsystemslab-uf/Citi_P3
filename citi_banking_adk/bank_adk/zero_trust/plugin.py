@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sys
+import weakref
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -58,6 +59,7 @@ class ZeroTrustBackplanePlugin(BasePlugin):
         self.workflow_by_agent: dict[str, str] = {}
         self.runtime_agent_edges: list[tuple[str, str]] = []
         self._agents_by_name: dict[str, Any] = {}
+        self._clone_origin: dict[int, tuple[Any, str]] = {}
         self._index_agent_tree(root_agent)
         self._agent_key_paths = self._load_agent_key_paths(config.agent_key_map_path)
         self._states: dict[str, InvocationState] = {}
@@ -109,6 +111,7 @@ class ZeroTrustBackplanePlugin(BasePlugin):
             if name in self._agents_by_name:
                 raise ValueError(f"Duplicate runtime agent name: {name}")
             self._agents_by_name[name] = agent
+            self._track_clones(agent, name)
             workflow = _WORKFLOW_BY_AGENT.get(name, inherited_workflow)
             if workflow:
                 self.workflow_by_agent[name] = workflow
@@ -147,15 +150,45 @@ class ZeroTrustBackplanePlugin(BasePlugin):
             result[identity] = (key_path if key_path.is_absolute() else path.parent / key_path).resolve()
         return result
 
+    def _track_clones(self, agent: Any, name: str) -> None:
+        """Record every object produced by an indexed agent's own clone().
+
+        ADK 2.x clones the entry-point agent on every run, so the object a tool callback sees is
+        not the indexed one. A clone carries no lineage marker and is structurally identical to its
+        original, so attribute matching cannot tell a clone from a lookalike. Provenance can: only
+        objects that actually came out of an indexed agent's clone() are trusted as that agent.
+        """
+        original_clone = getattr(agent, "clone", None)
+        if not callable(original_clone):
+            return
+
+        def tracked_clone(*args: Any, **kwargs: Any) -> Any:
+            clone = original_clone(*args, **kwargs)
+            key = id(clone)
+            self._clone_origin[key] = (
+                weakref.ref(clone, lambda _ref, key=key: self._clone_origin.pop(key, None)),
+                name,
+            )
+            return clone
+
+        object.__setattr__(agent, "clone", tracked_clone)
+
+    def _is_trusted_agent(self, name: str, agent: Any) -> bool:
+        if self._agents_by_name.get(name) is agent:
+            return True
+        origin = self._clone_origin.get(id(agent))
+        return origin is not None and origin[0]() is agent and origin[1] == name
+
     def _trusted_tool_agent_name(self, tool_context: Any) -> str:
         # ADK constructs this context from the running agent. Bind to that exact
-        # object, not a caller assertion, session value, or LLM tool argument.
+        # object, or to a clone ADK made of it, never to a caller assertion,
+        # session value, or LLM tool argument.
         context = getattr(tool_context, "_invocation_context", None)
         agent = getattr(context, "agent", None)
         name = str(getattr(agent, "name", "") or "")
         if (
             not name
-            or self._agents_by_name.get(name) is not agent
+            or not self._is_trusted_agent(name, agent)
             or getattr(tool_context, "agent_name", None) != name
         ):
             raise ValueError("Tool context does not identify a configured runtime agent")

@@ -208,6 +208,12 @@ class _Agent:
         self.name = name
         self.sub_agents = list(sub_agents or [])
 
+    def clone(self):
+        """Mimic ADK's BaseAgent.clone(): a new object that also clones its sub-agents."""
+        copy = _Agent(self.name)
+        copy.sub_agents = [sub.clone() for sub in self.sub_agents]
+        return copy
+
 
 class _Ctx:
     def __init__(self, invocation_id="inv-1", *, agent_name="", function_call_id="", agent=None):
@@ -498,6 +504,59 @@ def test_untrusted_agent_context_cannot_select_a_signing_key(native_plugin, monk
     blocked = _call_tool(plugin, context)
     assert blocked["reason"] == "IDENTITY_VERIFICATION_FAILED"
     assert not engine.signed_requests
+
+
+def test_genuine_adk_clone_of_an_indexed_agent_is_trusted(native_plugin):
+    # ADK 2.x clones the entry-point agent on every run; the clone must still select its key.
+    plugin, engine, _ = native_plugin
+    context = _context_for(plugin)
+    indexed = plugin._agents_by_name[context.agent_name]
+    context._invocation_context.agent = indexed.clone()
+    assert plugin._trusted_tool_agent_name(context) == context.agent_name
+
+
+def test_clone_of_a_sub_agent_made_during_a_parent_clone_is_trusted(native_plugin):
+    plugin, _, _ = native_plugin
+    parents = [a for a in plugin._agents_by_name.values() if a.sub_agents]
+    assert parents, "fixture tree must contain a parent with sub-agents"
+    parent_clone = parents[0].clone()
+    sub_clone = parent_clone.sub_agents[0]
+    context = _context_for(plugin)
+    context.agent_name = sub_clone.name
+    context._invocation_context.agent = sub_clone
+    assert plugin._trusted_tool_agent_name(context) == sub_clone.name
+
+
+def test_lookalike_with_same_name_that_is_not_a_clone_is_still_rejected(native_plugin):
+    plugin, _, _ = native_plugin
+    context = _context_for(plugin)
+    indexed = plugin._agents_by_name[context.agent_name]
+    lookalike = _Agent(indexed.name, indexed.sub_agents)  # equal on every visible attribute
+    context._invocation_context.agent = lookalike
+    with pytest.raises(ValueError, match="does not identify"):
+        plugin._trusted_tool_agent_name(context)
+
+
+def test_clone_cannot_be_presented_under_another_agents_name(native_plugin):
+    plugin, _, _ = native_plugin
+    context = _context_for(plugin)
+    indexed = plugin._agents_by_name[context.agent_name]
+    context._invocation_context.agent = indexed.clone()
+    context.agent_name = "user_proxy_agent"
+    with pytest.raises(ValueError, match="does not identify"):
+        plugin._trusted_tool_agent_name(context)
+
+
+def test_clone_trust_does_not_outlive_the_clone(native_plugin):
+    import gc
+
+    plugin, _, _ = native_plugin
+    indexed = next(iter(plugin._agents_by_name.values()))
+    clone = indexed.clone()
+    assert id(clone) in plugin._clone_origin
+    del clone
+    gc.collect()
+    assert not plugin._clone_origin
 
 
 def test_backplane_identity_denial_cannot_be_relaxed_by_shadow(native_plugin, monkeypatch):

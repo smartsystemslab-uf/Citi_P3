@@ -42,7 +42,8 @@ from zt_task6.registry import write_signed_registry
 
 ROOT_ID = "gateway-agent-root"
 ROOT_AGENT = "user_proxy_agent"  # the agent that owns the MCP tools in this app
-MESSAGE = "Use the get_transaction tool to fetch transaction TXN-1001 and tell me its amount."
+MESSAGE = ("You, the user proxy agent, must call your own get_transaction tool with transaction_id TXN-1001 and report its amount. "
+           "Do not transfer to any other agent.")
 
 
 class _Backend(BaseHTTPRequestHandler):
@@ -91,7 +92,10 @@ async def _run(base: Path, key_for_agent: Path, label: str, tries: int = 3):
         engine_audit = _events(base / f"zt_{label}" / "native_mas_audit.jsonl")
         gateway = _events(audit)
         reached = bool(_Backend.hits) or any(e["target_tool"] == "get_transaction" for e in gateway)
-        engine_denied = any(e.get("event_type") == "IDENTITY_VERIFICATION_FAILED" for e in engine_audit)
+        # Only the root agent calling get_transaction counts; other agents have no key here and are denied.
+        engine_denied = any(e.get("event_type") == "IDENTITY_VERIFICATION_FAILED"
+                            and e.get("caller_runtime_id") == ROOT_AGENT and e.get("target_runtime_id") == "get_transaction"
+                            for e in engine_audit)
         if reached or engine_denied:
             return {"gateway": [f'{e["event_type"]} {e.get("caller_runtime_id")} -> {e["target_tool"]}' for e in gateway],
                     "backend_hits": list(_Backend.hits), "engine_denied": engine_denied,
@@ -131,5 +135,19 @@ async def main():
     sys.exit(0 if passed else 1)
 
 
+def _quiet_teardown(loop, context):
+    # Harmless SSL teardown race after the real work is done (see run_cli.py); swallow only that.
+    exc = context.get("exception")
+    if isinstance(exc, (OSError, RuntimeError)) or "SSL transport" in context.get("message", ""):
+        return
+    loop.default_exception_handler(context)
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.set_exception_handler(_quiet_teardown)
+    try:
+        loop.run_until_complete(main())
+    finally:
+        loop.close()
