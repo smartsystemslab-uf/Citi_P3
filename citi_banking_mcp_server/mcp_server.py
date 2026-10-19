@@ -13,6 +13,20 @@ BACKEND_API_URL = os.getenv("BANKING_BACKEND_URL", "http://localhost:8000").rstr
 # Initialize the MCP Server
 # The name "CitiBank-MCP-Service" will be visible to the connecting AI agent
 mcp = FastMCP("CitiBank-MCP-Service")
+
+# Optional agent-identity gate (off unless CITI_ZT_IDENTITY_REGISTRY is set): this process verifies
+# a signed identity on every tool call before running the tool.
+from identity_gate import IdentityGate
+
+_identity_gate = IdentityGate.from_env()
+if _identity_gate is not None:
+    _register_tool = mcp.tool
+
+    def _gated_tool(*args, **kwargs):
+        register = _register_tool(*args, **kwargs)
+        return lambda fn: register(_identity_gate.wrap(fn))
+
+    mcp.tool = _gated_tool
 mode = os.getenv("MCP_MODE", "all")
 
 # =========================================================
