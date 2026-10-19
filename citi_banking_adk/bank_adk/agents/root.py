@@ -1,3 +1,5 @@
+import inspect
+
 from google.adk.agents import LlmAgent
 from ..llm import build_model
 from ..callbacks import sanitize_tool_call_names
@@ -11,16 +13,38 @@ def build_root_agent(mcp_session=None, mcp_tools=None) -> LlmAgent:
 
     if mcp_session and mcp_tools:
         # Factory function prevents Python loop late-binding issues
-        def _make_tool_wrapper(tool_name: str, tool_desc: str):
+        _JSON_TYPES = {"string": str, "integer": int, "number": float, "boolean": bool}
+
+        def _make_tool_wrapper(tool_name: str, tool_desc: str, input_schema: dict | None = None):
             async def mcp_bridge_wrapper(**kwargs):
-                # The ADK executes this, routing the request over SSE to the microservice
+                # signed_identity is injected by the Zero Trust plugin; omit it when empty so servers
+                # without an identity gate (no such argument) are unaffected.
+                if not kwargs.get("signed_identity"):
+                    kwargs.pop("signed_identity", None)
                 result = await mcp_session.call_tool(tool_name, arguments=kwargs)
-                
+
                 # Extract text content from the MCP response object
                 if hasattr(result, 'content'):
                     return "\n".join([c.text for c in result.content if hasattr(c, 'text')])
                 return str(result)
-            
+
+            # ADK only forwards arguments named in the function signature, so a bare **kwargs bridge
+            # receives none. Declare the MCP tool's real parameters (plus signed_identity) explicitly.
+            schema = input_schema or {}
+            required = set(schema.get("required", []))
+            params = [
+                inspect.Parameter(
+                    name, inspect.Parameter.KEYWORD_ONLY,
+                    annotation=_JSON_TYPES.get(spec.get("type"), str),
+                    default=inspect.Parameter.empty if name in required else None,
+                )
+                for name, spec in schema.get("properties", {}).items() if name != "signed_identity"
+            ]
+            params.append(inspect.Parameter("signed_identity", inspect.Parameter.KEYWORD_ONLY,
+                                            annotation=str, default=""))
+            mcp_bridge_wrapper.__signature__ = inspect.Signature(params)
+            mcp_bridge_wrapper._citi_mcp_tool = True
+
             # Apply metadata so the LLM framework knows how to prompt the tool
             mcp_bridge_wrapper.__name__ = tool_name
             mcp_bridge_wrapper.__doc__ = tool_desc
@@ -28,7 +52,7 @@ def build_root_agent(mcp_session=None, mcp_tools=None) -> LlmAgent:
 
         # Dynamically generate and append all available tools
         for mcp_tool in mcp_tools:
-            wrapper = _make_tool_wrapper(mcp_tool.name, mcp_tool.description)
+            wrapper = _make_tool_wrapper(mcp_tool.name, mcp_tool.description, getattr(mcp_tool, "inputSchema", None))
             agent_tools.append(wrapper)
 
     return LlmAgent(

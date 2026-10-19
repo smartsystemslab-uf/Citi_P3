@@ -372,6 +372,10 @@ class ZeroTrustBackplanePlugin(BasePlugin):
                 "reason": "IDENTITY_VERIFICATION_FAILED",
                 "trace_id": state.trace_id,
             }
+        if getattr(getattr(tool, "func", None), "_citi_mcp_tool", False):
+            # MCP-backed tool: carry the signed identity to the gateway process so it can verify
+            # independently of this process.
+            tool_args["signed_identity"] = json.dumps(signed_identity_request)
         workflow_id = self._workflow_for(agent_name)
         placement = self.engine.find_tool_placement(
             agent_name,
