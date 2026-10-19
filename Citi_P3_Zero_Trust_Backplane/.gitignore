@@ -2,3 +2,12 @@ __pycache__/
 *.pyc
 native_mas_runtime/output/
 *.egg-info/
+
+# AUTHN agent identity: never commit private keys or generated registries
+zero_trust_task6_agent_identity/keys/
+zero_trust_task6_agent_identity/public_keys.yaml
+zero_trust_task6_agent_identity/registry.yaml
+zero_trust_task6_agent_identity/.registry-*.tmp
+.pytest_cache/
+.coverage*
+htmlcov/
