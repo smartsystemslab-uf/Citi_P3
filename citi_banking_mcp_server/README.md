@@ -171,3 +171,32 @@ Database / Banking Data
 ```
 
 The main purpose of this module is to make backend banking functions safely and consistently available to AI agents as structured tools.
+
+## Optional agent identity gate (proof of concept)
+
+When `CITI_ZT_IDENTITY_REGISTRY` is set, this server process verifies a signed agent identity on
+**every tool call before the tool runs**, so the check lives in a separate process from the agents.
+It is off by default; with the variable unset, behavior is unchanged.
+
+| Variable | Purpose |
+|---|---|
+| `CITI_ZT_IDENTITY_REGISTRY` | Root-signed registry file (enables the gate) |
+| `CITI_ZT_IDENTITY_REGISTRY_ROOT_PUBLIC_KEY` | Independently provisioned root public key (PEM) |
+| `CITI_ZT_IDENTITY_REGISTRY_ROOT_KEY_ID` | Pinned root key ID |
+| `CITI_ZT_TASK6_SRC` | Path to `zero_trust_task6_agent_identity/src` |
+| `CITI_ZT_GATEWAY_AUDIT` | Optional JSONL file for `IDENTITY_VERIFIED` / `IDENTITY_VERIFICATION_FAILED` |
+
+Each tool gains a `signed_identity` argument (the JSON from `zt_task6.signing.sign_request`). The
+request must name the tool being called, so a signature for one tool cannot be reused for another.
+The registry is reloaded on every call, so revocation applies to the next request without restarting
+the server. Any failure denies the call.
+
+Run the end-to-end proof (launches this server as a real child process, no LLM, no backend needed):
+
+```bash
+python demo_gateway_identity.py
+```
+
+Scope: this proves the gateway mechanism on the existing front-office `get_transaction` tool. The
+agents' normal CLI run does not call this server yet, so wiring the plugin to send `signed_identity`
+over MCP is still to do.

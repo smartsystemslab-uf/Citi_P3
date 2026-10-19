@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# AUTHN demo: (1) a legitimate agent identity passes, (2) impersonation is blocked before the PDP.
+# AUTHN demo: (1) a legitimate agent identity passes, (2) impersonation is blocked before the PDP,
+# (3) revoking a key blocks even the real agent, (4) rotating in a new key restores access.
 #
 # Run from a checkout of this branch:  bash Citi_P3_Zero_Trust_Backplane/zero_trust_task6_agent_identity/demo_authn.sh
 # Prerequisites (override with env vars if yours differ):
@@ -73,6 +74,38 @@ for l in open(sys.argv[1]):
 PYEOF
 }
 
-echo; echo "== RUN 1: legitimate identity =="; run "$DEMO/keymap.json" "$DEMO/out_ok"; audit "$DEMO/out_ok"
-echo; echo "== RUN 2: IMPERSONATION (aml_investigator signs with another agent's key) =="; run "$DEMO/keymap_impersonation.json" "$DEMO/out_attack"; audit "$DEMO/out_attack"
-echo; echo "Expected: RUN 1 shows TOOL_AUTHORIZATION (ALLOW). RUN 2 shows IDENTITY_VERIFICATION_FAILED and no TOOL_AUTHORIZATION."
+# The model occasionally stops before reaching the tool (non-deterministic routing). Retry until the
+# expected security event is actually in the audit log, so the demo always shows the real decision.
+attempt() {  # $1 = keymap, $2 = output dir, $3 = expected audit event_type
+  local n
+  for n in 1 2 3; do
+    rm -rf "$2"
+    run "$1" "$2"
+    if grep -q "\"event_type\": \"$3\"" "$2/native_mas_audit.jsonl" 2>/dev/null; then return 0; fi
+    echo "  (model did not reach the tool this attempt - retrying $n/3)"
+  done
+  echo "  WARNING: expected $3 never appeared"
+}
+
+echo; echo "== RUN 1: legitimate identity =="; attempt "$DEMO/keymap.json" "$DEMO/out_ok" TOOL_AUTHORIZATION; audit "$DEMO/out_ok"
+echo; echo "== RUN 2: IMPERSONATION (aml_investigator signs with another agent's key) =="; attempt "$DEMO/keymap_impersonation.json" "$DEMO/out_attack" IDENTITY_VERIFICATION_FAILED; audit "$DEMO/out_attack"
+ROOT_ARGS=(--registry "$DEMO/registry.yaml" --registry-root-private-key "$DEMO/root-private.pem" --registry-root-key-id demo-root-v1)
+
+echo; echo "== AUTHN-5: REVOKE aml_investigator's key (suspected compromise) =="
+(cd "$HERE" && $PY revoke_agent_key.py "${ROOT_ARGS[@]}" --agent-id aml_investigator \
+  --reason "demo: suspected key leak" --actor demo-operator --audit-log "$DEMO/revocations.jsonl" | head -2)
+echo "== RUN 3: the real aml_investigator, now revoked =="; attempt "$DEMO/keymap.json" "$DEMO/out_revoked" IDENTITY_VERIFICATION_FAILED; audit "$DEMO/out_revoked"
+echo "  AUDIT (revocation log):"; sed 's/^/    /' "$DEMO/revocations.jsonl"
+
+echo; echo "== AUTHN-4: ROTATE (issue a fresh key for aml_investigator) =="
+(cd "$HERE" && $PY rotate_agent_key.py "${ROOT_ARGS[@]}" --agent-id aml_investigator --keys-dir "$DEMO/keys" --grace-seconds 300 | head -2)
+$PY - "$DEMO" <<'PYEOF'
+import json, sys
+d = sys.argv[1]
+m = json.load(open(f"{d}/keymap.json"))
+m["aml_investigator"] = f"{d}/keys/aml_investigator.next.key"
+json.dump(m, open(f"{d}/keymap_rotated.json", "w"))
+PYEOF
+echo "== RUN 4: aml_investigator signing with the NEW key =="; attempt "$DEMO/keymap_rotated.json" "$DEMO/out_rotated" TOOL_AUTHORIZATION; audit "$DEMO/out_rotated"
+
+echo; echo "Expected: RUN 1 and RUN 4 show TOOL_AUTHORIZATION (ALLOW). RUN 2 and RUN 3 show IDENTITY_VERIFICATION_FAILED and no TOOL_AUTHORIZATION."

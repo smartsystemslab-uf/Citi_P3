@@ -191,3 +191,31 @@ Remove-Item Env:AUTHN2_COVERAGE
 
 The subprocess flag changes only test instrumentation. A fresh coverage run
 should use a clean coverage data directory so prior runs do not inflate results.
+
+## Key rotation and revocation (AUTHN-4 / AUTHN-5)
+
+Both are root-signed edits to the registry, so a change made outside these commands is
+detected as tampering. They share `registry.update_signed_registry`.
+
+```bash
+# Rotate: registers a fresh key now; the old key keeps verifying for the grace period.
+python rotate_agent_key.py --registry registry.yaml \
+  --registry-root-private-key /secure/root-private.pem --registry-root-key-id registry-root-v1 \
+  --agent-id aml_investigator --keys-dir keys --grace-seconds 300
+# New private key is written to keys/<agent>.next.key - swap it in (or update the key map).
+
+# Revoke: no grace period; logs an IDENTITY_REVOKED event (who, which key, why, when).
+python revoke_agent_key.py --registry registry.yaml \
+  --registry-root-private-key /secure/root-private.pem --registry-root-key-id registry-root-v1 \
+  --agent-id aml_investigator --reason "suspected key leak" --audit-log output/native_mas_audit.jsonl
+```
+
+Operational limits:
+- Revocation is effective for any verifier that loads the registry after the change. A
+  long-running verifier keeps its in-memory snapshot until `registry.reload()` is called;
+  there is no automatic polling or cross-process push.
+- An identity whose only key is revoked cannot authenticate until `rotate_agent_key.py`
+  registers a new key (rotation doubles as the recovery path).
+- Serialize concurrent registry writers externally.
+
+`demo_authn.sh` runs the whole lifecycle: valid identity, impersonation, revocation, rotation.

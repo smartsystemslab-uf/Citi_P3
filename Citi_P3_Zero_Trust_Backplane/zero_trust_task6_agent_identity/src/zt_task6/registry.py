@@ -273,6 +273,11 @@ def write_signed_registry(public_keys: Mapping[str, str], registry_path: Path, *
     _validate_payload(payload)
     if not changed:
         return
+    _sign_and_publish(path, root, payload)
+
+
+def _sign_and_publish(path: Path, root: Ed25519PrivateKey, payload: dict) -> None:
+    """Sign a validated payload and atomically replace the registry file."""
     envelope = {"payload": payload,
                 "signature": base64.b64encode(root.sign(canonical_payload(payload))).decode("ascii")}
     contents = yaml.safe_dump(envelope, sort_keys=True, allow_unicode=True)
@@ -290,3 +295,24 @@ def write_signed_registry(public_keys: Mapping[str, str], registry_path: Path, *
     finally:
         if temp_path is not None and temp_path.exists():
             temp_path.unlink()
+
+
+def update_signed_registry(registry_path: Path, *, root_private_key_path: Path, root_key_id: str,
+                           mutate) -> bool:
+    """Verify the existing registry, apply ``mutate(payload) -> changed``, re-sign, publish.
+
+    Used by rotation and revocation so every lifecycle change is integrity-protected by the
+    root. Returns False (and writes nothing) when ``mutate`` reports no change. Writers must
+    be externally serialized.
+    """
+    root = _private_key(root_private_key_path)
+    root_id = _text(root_key_id)
+    path = Path(registry_path)
+    if not path.exists():
+        raise RegistryError("Registry does not exist")
+    payload, _ = _verified_payload(path, root.public_key(), root_id)
+    if not mutate(payload):
+        return False
+    _validate_payload(payload)
+    _sign_and_publish(path, root, payload)
+    return True
