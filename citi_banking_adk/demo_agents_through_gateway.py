@@ -7,6 +7,11 @@ and mcp_server.py (a separate process) verifies the identity before running the 
 
 Needs the model API key in .env, the scanner output (agents_draft.yaml), and the zt_task6 package.
 A tiny stub stands in for the banking backend so only the identity path is under test.
+
+TRANSPARENCY: the PDP runs in SHADOW mode here. The static policy has no rule for the dynamically
+registered MCP tool (user_proxy_agent -> get_transaction), so an enforcing PDP would deny it before
+the call reaches the gateway. In shadow mode that deny is logged ("would block") but not enforced.
+Identity checks are NOT relaxed by shadow mode: a failed identity check still denies the call.
 """
 
 from __future__ import annotations
@@ -87,7 +92,7 @@ async def _run(base: Path, key_for_agent: Path, label: str, tries: int = 3):
                     enabled=True, backplane_root=BP, mas_repo_root=ROOT, output_dir=base / f"zt_{label}",
                     agent_key_map_path=keymap, identity_registry_path=base / "registry.yaml",
                     identity_registry_root_public_key_path=base / "root-public.pem",
-                    identity_registry_root_key_id=ROOT_ID)
+                    identity_registry_root_key_id=ROOT_ID, mode="shadow")
                 await run_message(MESSAGE, mcp_session=session, mcp_tools=tools, compact=True, zero_trust_config=config)
         engine_audit = _events(base / f"zt_{label}" / "native_mas_audit.jsonl")
         gateway = _events(audit)
@@ -99,7 +104,9 @@ async def _run(base: Path, key_for_agent: Path, label: str, tries: int = 3):
         if reached or engine_denied:
             return {"gateway": [f'{e["event_type"]} {e.get("caller_runtime_id")} -> {e["target_tool"]}' for e in gateway],
                     "backend_hits": list(_Backend.hits), "engine_denied": engine_denied,
-                    "engine_tool_events": [e["event_type"] for e in engine_audit if e.get("event_type") in ("TOOL_AUTHORIZATION", "IDENTITY_VERIFICATION_FAILED")]}
+                    "engine_tool_events": [e["event_type"] for e in engine_audit if e.get("event_type") in ("TOOL_AUTHORIZATION", "IDENTITY_VERIFICATION_FAILED")],
+                    "pdp": [f'{e.get("decision")} / {e.get("reason")} / would_block={e.get("would_block")} / mode={e.get("mode")}'
+                            for e in engine_audit if e.get("event_type") == "TOOL_AUTHORIZATION" and e.get("target_runtime_id") == "get_transaction"]}
         print(f"  (model did not call the MCP tool; retry {attempt}/{tries})")
     return {"gateway": [], "backend_hits": [], "engine_denied": False, "engine_tool_events": [], "never_called": True}
 
@@ -119,10 +126,12 @@ async def main():
     (base / "backend_url").write_text(f"http://127.0.0.1:{backend.server_address[1]}")
     os.environ["BANKING_ADK_RUNTIME_DIR"] = str(base / "runtime")
 
+    print("NOTE: PDP is in SHADOW mode (no policy rule exists yet for this MCP tool). Identity checks are still enforced.\n")
     print("== RUN 1: agent with its OWN key calls get_transaction through the MCP gateway ==")
     ok = await _run(base, good, "ok")
     print("  gateway (separate process):", ok["gateway"] or "no event")
     print("  backend requests reached:  ", ok["backend_hits"] or "none")
+    print("  PDP (shadow, not enforced):", ok.get("pdp") or "no TOOL_AUTHORIZATION event")
     print("\n== RUN 2: agent holding the WRONG key ==")
     bad = await _run(base, evil, "bad")
     print("  engine decision:           ", bad["engine_tool_events"] or "none")
